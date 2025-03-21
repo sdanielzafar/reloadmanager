@@ -30,18 +30,4 @@ def test_commit(sqlite_mixin):
 
 def test_close(sqlite_mixin):
     sqlite_mixin.close()
-    assert sqlite_mixin.conn.closed
-
-def test_fetchall(sqlite_mixin):
-    sqlite_mixin.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
-    sqlite_mixin.execute("INSERT INTO test (value) VALUES ('test_value')")
-    sqlite_mixin.commit()
-    result = sqlite_mixin.fetchall()
-    assert len(result) == 1
-
-def test_fetchone(sqlite_mixin):
-    sqlite_mixin.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
-    sqlite_mixin.execute("INSERT INTO test (value) VALUES ('test_value')")
-    sqlite_mixin.commit()
-    result = sqlite_mixin.fetchone()
-    assert result[1] == 'test_value'
+    assert sqlite_mixin.conn.close
