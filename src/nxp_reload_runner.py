@@ -51,9 +51,9 @@ class NxpReloadRunner(ReplicantRunner):
     def config_file_path_defaults(self) -> ConfigFilePaths:
         return ConfigFilePaths(
             source="/arcion/configs/teradata_src.yaml",
-            target="",
-            extractor="",
+            target=None,
+            extractor=None,
             applier="/arcion/configs/databricks_applier.yaml",
-            filter="",
-            map="",
+            filter=None,
+            map=None,
         )

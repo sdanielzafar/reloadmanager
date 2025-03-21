@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import textwrap
+import tempfile
+import os
 from abc import ABC, abstractmethod
 import subprocess
 
@@ -59,12 +61,12 @@ class ExtractorConfig:
 
 @dataclass
 class ConfigFilePaths:
-    source: str
-    target: str
-    extractor: str
-    applier: str
-    filter: str
-    map: str
+    source: str | None
+    target: str | None
+    extractor: str | None
+    applier: str | None
+    filter: str | None
+    map: str | None
 
 
 class ReplicantRunner(ABC):
@@ -98,14 +100,16 @@ class ReplicantRunner(ABC):
     def __init__(self,
                  source_table: str,
                  target_table: str,
-                 replicant_path: str = "/arcion/replicant-cli/bin/replicant"):
+                 replicant_path: str = "/arcion/replicant-cli/bin/replicant",
+                 config_dir_path: str = None):
         self.replicant_path: str = replicant_path
         self.source_table: TableInfo = self._validate_source_table(source_table)
         self.target_table: TableInfo = self._validate_target_table(target_table)
         self.src_config: SourceConfig = self.source_config_defaults()
         self.target_config: TargetConfig = self.target_config_defaults()
         self.extr_config: ExtractorConfig = self.extractor_config_defaults()
-        self.config_file_paths: ConfigFilePaths = self.set_config_file_path_defaults()
+        self.config_file_paths: ConfigFilePaths = self.config_file_path_defaults()
+        self.config_dir_path = config_dir_path if config_dir_path else tempfile.mkdtemp()
 
     @staticmethod
     def _validate_source_table(source_table: str) -> TableInfo:
@@ -137,8 +141,8 @@ class ReplicantRunner(ABC):
     def extractor_config_defaults(self) -> ExtractorConfig:
         pass
 
-    def _write_src_config(self):
-        textwrap.dedent(f"""
+    def _write_src_config(self) -> str:
+        src_yaml: str = textwrap.dedent(f"""
             type: {self.src_config.type}
     
             host: {self.src_config.host}
@@ -161,8 +165,14 @@ class ReplicantRunner(ABC):
             conn-retry-wait-duration-ms: 5000
         """)
 
-    def _write_target_config(self):
-        textwrap.dedent(f"""
+        file_path: str = os.path.join(self.config_dir_path, "source.yaml")
+        with open(file_path, "w") as file:
+            file.write(src_yaml)
+
+        return file_path
+
+    def _write_target_config(self) -> str:
+        target_yaml: str = textwrap.dedent(f"""
             type: {self.target_config.type}
             host: {self.target_config.host}
             port: {self.target_config.port}
@@ -188,9 +198,15 @@ class ReplicantRunner(ABC):
               file-format: {self.target_config.stage_file_format}
         """)
 
-    def _write_extractor_config(self):
+        file_path: str = os.path.join(self.config_dir_path, "target.yaml")
+        with open(file_path, "w") as file:
+            file.write(target_yaml)
 
-        textwrap.dedent(f"""
+        return file_path
+
+    def _write_extractor_config(self) -> str:
+
+        extractor_yaml: str = textwrap.dedent(f"""
             snapshot:
               threads: {str(self.extr_config.threads)}
               fetch-size-rows: {self.extr_config.fetch_size_rows}
@@ -214,9 +230,15 @@ class ReplicantRunner(ABC):
                     extraction-method: {self.extr_config.extraction_method}
         """)
 
-    @staticmethod
-    def _write_applier_config():
-        textwrap.dedent(f"""
+        file_path: str = os.path.join(self.config_dir_path, "extractor.yaml")
+        with open(file_path, "w") as file:
+            file.write(extractor_yaml)
+
+        return file_path
+
+    def _write_applier_config(self) -> str:
+
+        applier_yaml: str = textwrap.dedent(f"""
            snapshot:
               threads: 16
               txn-size-rows: 1_000_000
@@ -231,8 +253,14 @@ class ReplicantRunner(ABC):
               threads: 16
         """)
 
-    def _write_allow_config(self):
-        textwrap.dedent(f"""
+        file_path: str = os.path.join(self.config_dir_path, "applier.yaml")
+        with open(file_path, "w") as file:
+            file.write(applier_yaml)
+
+        return file_path
+
+    def _write_allow_config(self) -> str:
+        allow_yaml: str = textwrap.dedent(f"""
             allow:
             - schema : {self.source_table.schema}
               types: [TABLE, VIEW, QUERY]
@@ -240,25 +268,40 @@ class ReplicantRunner(ABC):
                 {self.source_table.table} :
         """)
 
-    def _write_map_config(self):
-        textwrap.dedent(f"""
+        file_path: str = os.path.join(self.config_dir_path, "allow.yaml")
+        with open(file_path, "w") as file:
+            file.write(allow_yaml)
+
+        return file_path
+
+    def _write_map_config(self) -> str:
+        map_yaml: str = textwrap.dedent(f"""
             rules:
             [{self.target_table.catalog}, {self.target_table.schema}]:
             source:
             - {self.target_table.schema}
         """)
 
+        file_path: str = os.path.join(self.config_dir_path, "map.yaml")
+        with open(file_path, "w") as file:
+            file.write(map_yaml)
+
+        return file_path
+
     # DZ working on this
     def _write_config_files(self):
-        pass
-        # # source
-        # # target
-        # # extractor
-        # # applier
-        # # filter
-        # # map
-        # if not self.config_file_paths.source:
-
+        if not self.config_file_paths.source:
+            self.config_file_paths.source = self._write_src_config()
+        if not self.config_file_paths.target:
+            self.config_file_paths.target = self._write_target_config()
+        if not self.config_file_paths.extractor:
+            self.config_file_paths.extractor = self._write_extractor_config()
+        if not self.config_file_paths.applier:
+            self.config_file_paths.applier = self._write_applier_config()
+        if not self.config_file_paths.filter:
+            self.config_file_paths.filter = self._write_allow_config()
+        if not self.config_file_paths.map:
+            self.config_file_paths.map = self._write_map_config()
 
     @staticmethod
     def run_cli_cmd(command: list[str]) -> str:
