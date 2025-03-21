@@ -1,0 +1,18 @@
+{
+    "tables": [
+        {
+            "database_1.table_1": {
+                "priority": "1",
+                "max_staleness": "60"
+            },
+            "database_1.table_2": {
+                "priority": "2",
+                "max_staleness": "30"
+            },
+            "database_3.table_1": {
+                "priority": "3",
+                "max_staleness": "45"
+            }
+        }
+    ]
+}
