@@ -1,0 +1,59 @@
+from replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
+
+
+class NxpReloadRunner(ReplicantRunner):
+    def source_config_defaults(self) -> SourceConfig:
+        return SourceConfig(
+            type="TERADATA",
+            host="edwpc.nxp.com",
+            port="1025",
+            credential_store_type="PKCS12",
+            credential_store_path="/arcion/configs/teradata.jks",
+            credential_store_key_prefix='"teradata"',
+            tpt_connection_host="edwpc.nxp.com",
+            tpt_connection_un="'EDW_DB_SYNC_USER'",
+            tpt_connection_pass="'Syndb$25pc'",
+            max_connections="4",
+        )
+
+    def target_config_defaults(self) -> TargetConfig:
+        return TargetConfig(
+            type="DATABRICKS_LAKEHOUSE",
+            host="dbc-7c9eb967-788d.cloud.databricks.com",
+            port="443",
+            url="jdbc:databricks://dbc-7c9eb967-788d.cloud.databricks.com:443/default;transportMode=http;ssl=1;AuthMech=3;httpPath=/sql/1.0/warehouses/79ae80263968b83a;",
+            username="token",
+            password="*",
+            max_connections="8",
+            supports_timestamp_ntz="false",
+            stage_type="S3",
+            stage_root_dir="replicant-stage/7d973a81-6d3a-4e26-99e2-6b10df4bbf41/dz-testing-999/migration_dz_test",
+            stage_conn_url="1dp-migration-acrion-td-sync",
+            stage_key_id="*",
+            stage_secret_key="VI5D1P5xN6VOIJUYv/RmwrCE2HM0LuZYwfpwHuFc",
+            stage_file_format="PARQUET",
+        )
+
+    def extractor_config_defaults(self) -> ExtractorConfig:
+        return ExtractorConfig(
+            threads=2,
+            fetch_size_rows="10_000",
+            split_method="RANGE",
+            extraction_method="TERADATA_WRITE_NOS",
+            tpt_max_file_size_gb="5",
+            tpt_num_files_per_job="16",
+            write_nos_auth_schema="EDW_DB_SYNC_USER",
+            write_nos_number_precision="38",
+            write_nos_number_scale="10",
+            write_nos_cast_str_type="true"
+        )
+
+    def config_file_path_defaults(self) -> ConfigFilePaths:
+        return ConfigFilePaths(
+            source="/arcion/configs/teradata_src.yaml",
+            target="",
+            extractor="",
+            applier="/arcion/configs/databricks_applier.yaml",
+            filter="",
+            map="",
+        )
