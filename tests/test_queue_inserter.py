@@ -1,9 +1,8 @@
 import pytest
 import sqlite3
-from datetime import datetime
 
-from src.queue_inserter import QueueInserter
-from src.table_priorities import TablePriorities
+from src.reloadmanager.queue_inserter import QueueInserter
+from src import TablePriorities
 
 @pytest.fixture
 def db_path(tmp_path):
