@@ -1,7 +1,22 @@
+import random
+from datetime import datetime
 from replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
 
 
 class NxpReloadRunner(ReplicantRunner):
+
+    def __init__(self,
+                 source_table: str,
+                 target_table: str,
+                 replicant_path: str = "/arcion/replicant-cli/bin/replicant",
+                 config_dir_path: str = None):
+        super().__init__(source_table, target_table, replicant_path, config_dir_path)
+
+        self.oauth_client_id = "7d973a81-6d3a-4e26-99e2-6b10df4bbf41"
+        self.databricks_pat = self.get_secret("DATABRICKS_PAT")
+        self.aws_key = self.get_secret("AWS_KEY")
+        self.aws_secret = self.get_secret("AWS_SECRET")
+
     def source_config_defaults(self) -> SourceConfig:
         return SourceConfig(
             type="TERADATA",
@@ -16,21 +31,28 @@ class NxpReloadRunner(ReplicantRunner):
             max_connections="4",
         )
 
+    def _generate_table_id(self) -> str:
+        return f"{self.source_table.table[:6]}{random.randint(100, 999)}"
+
     def target_config_defaults(self) -> TargetConfig:
+
+        ts: str = datetime.now().strftime("%Y%m%d_%H%M%S_") + f"{datetime.now().microsecond // 1000:03d}"
+
         return TargetConfig(
             type="DATABRICKS_LAKEHOUSE",
             host="dbc-7c9eb967-788d.cloud.databricks.com",
             port="443",
             url="jdbc:databricks://dbc-7c9eb967-788d.cloud.databricks.com:443/default;transportMode=http;ssl=1;AuthMech=3;httpPath=/sql/1.0/warehouses/79ae80263968b83a;",
             username="token",
-            password="*",
+            password=self.databricks_pat,
             max_connections="8",
             supports_timestamp_ntz="false",
             stage_type="S3",
-            stage_root_dir="replicant-stage/7d973a81-6d3a-4e26-99e2-6b10df4bbf41/dz-testing-999/migration_dz_test",
+            stage_root_dir=f"replicant-stage/{self.oauth_client_id}/{self._generate_table_id()}/"
+                           f"migration_{self.source_table.table}_{ts}",
             stage_conn_url="1dp-migration-acrion-td-sync",
-            stage_key_id="*",
-            stage_secret_key="VI5D1P5xN6VOIJUYv/RmwrCE2HM0LuZYwfpwHuFc",
+            stage_key_id=self.aws_key,
+            stage_secret_key=self.aws_secret,
             stage_file_format="PARQUET",
         )
 
