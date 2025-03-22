@@ -4,6 +4,7 @@ import tempfile
 import os
 from abc import ABC, abstractmethod
 import subprocess
+from secret_mixin import SecretMixin
 
 
 @dataclass
@@ -69,7 +70,7 @@ class ConfigFilePaths:
     map: str | None
 
 
-class ReplicantRunner(ABC):
+class ReplicantRunner(ABC, SecretMixin):
     """
     This class will run the Arcion Replicant CLI commands
 
@@ -172,6 +173,7 @@ class ReplicantRunner(ABC):
         return file_path
 
     def _write_target_config(self) -> str:
+
         target_yaml: str = textwrap.dedent(f"""
             type: {self.target_config.type}
             host: {self.target_config.host}
