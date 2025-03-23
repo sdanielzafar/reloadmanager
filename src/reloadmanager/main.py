@@ -1,6 +1,7 @@
 import argparse
 from reloadmanager import reload_table
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="NXP Reload Manager CLI"

@@ -4,7 +4,7 @@ import tempfile
 import os
 from abc import ABC, abstractmethod
 import subprocess
-from secret_mixin import SecretMixin
+from reloadmanager.secret_mixin import SecretMixin
 
 
 @dataclass
@@ -106,10 +106,10 @@ class ReplicantRunner(ABC, SecretMixin):
         self.replicant_path: str = replicant_path
         self.source_table: TableInfo = self._validate_source_table(source_table)
         self.target_table: TableInfo = self._validate_target_table(target_table)
-        self.src_config: SourceConfig = self.source_config_defaults()
-        self.target_config: TargetConfig = self.target_config_defaults()
-        self.extr_config: ExtractorConfig = self.extractor_config_defaults()
-        self.config_file_paths: ConfigFilePaths = self.config_file_path_defaults()
+        self.src_config: SourceConfig | None = None
+        self.target_config: TargetConfig | None = None
+        self.extr_config: ExtractorConfig | None = None
+        self.config_file_paths: ConfigFilePaths | None = None
         self.config_dir_path = config_dir_path if config_dir_path else tempfile.mkdtemp()
 
     @staticmethod
@@ -117,7 +117,8 @@ class ReplicantRunner(ABC, SecretMixin):
         source_schema_table: list[str] = source_table.upper().split(".")
         if len(source_schema_table) != 2:
             raise Exception(f"Argument source_table must have format schema.table. Not '{source_table}'")
-        return TableInfo(catalog=None, *source_schema_table)
+        schema, table = source_schema_table
+        return TableInfo(catalog=None, schema=schema, table=table)
 
     @staticmethod
     def _validate_target_table(target_table: str) -> TableInfo:
@@ -141,6 +142,12 @@ class ReplicantRunner(ABC, SecretMixin):
     @abstractmethod
     def extractor_config_defaults(self) -> ExtractorConfig:
         pass
+
+    def load_config_defaults(self):
+        self.src_config = self.source_config_defaults()
+        self.target_config = self.target_config_defaults()
+        self.extr_config = self.extractor_config_defaults()
+        self.config_file_paths = self.config_file_path_defaults()
 
     def _write_src_config(self) -> str:
         src_yaml: str = textwrap.dedent(f"""
@@ -279,9 +286,9 @@ class ReplicantRunner(ABC, SecretMixin):
     def _write_map_config(self) -> str:
         map_yaml: str = textwrap.dedent(f"""
             rules:
-            [{self.target_table.catalog}, {self.target_table.schema}]:
-            source:
-            - {self.target_table.schema}
+              [{self.target_table.catalog}, {self.target_table.schema}]:
+                source:
+                - {self.target_table.schema}
         """)
 
         file_path: str = os.path.join(self.config_dir_path, "map.yaml")
@@ -316,6 +323,9 @@ class ReplicantRunner(ABC, SecretMixin):
             stdout: str = "\n\t\t" + e.stdout.strip().replace('\n', '\n\t\t')
             print(f"\tThe command's stderr: {stderr if e.stderr else 'No stderr available'}")
             print(f"\tThe command's stdout: {stdout if e.stdout else 'No stdout available'}")
+            raise e
+        except Exception as e:
+            print(f"Command: '{' '.join(command)}' failed")
             raise e
 
     def run_snapshot(self):

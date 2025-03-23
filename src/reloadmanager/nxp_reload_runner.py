@@ -1,6 +1,6 @@
 import random
 from datetime import datetime
-from replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
+from reloadmanager.replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
 
 
 class NxpReloadRunner(ReplicantRunner):
@@ -8,14 +8,21 @@ class NxpReloadRunner(ReplicantRunner):
     def __init__(self,
                  source_table: str,
                  target_table: str,
-                 replicant_path: str = "/arcion/replicant-cli/bin/replicant",
+                 replicant_path: str = None,
                  config_dir_path: str = None):
+
+        replicant_path: str = replicant_path or "/arcion/replicant-cli/bin/replicant"
         super().__init__(source_table, target_table, replicant_path, config_dir_path)
 
+        self.load_env_file("/home/arcion/secrets/.env")
         self.oauth_client_id = "7d973a81-6d3a-4e26-99e2-6b10df4bbf41"
         self.databricks_pat = self.get_secret("DATABRICKS_PAT")
         self.aws_key = self.get_secret("AWS_KEY")
         self.aws_secret = self.get_secret("AWS_SECRET")
+
+        # need to do this as a separate call, not in the parent's constructor or else the above attributes will
+        # not be passed in because they won't be defined yet.
+        self.load_config_defaults()
 
     def source_config_defaults(self) -> SourceConfig:
         return SourceConfig(
