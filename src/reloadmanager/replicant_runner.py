@@ -4,6 +4,7 @@ import tempfile
 import os
 from abc import ABC, abstractmethod
 import subprocess
+import time
 from reloadmanager.secret_mixin import SecretMixin
 
 
@@ -331,6 +332,9 @@ class ReplicantRunner(ABC, SecretMixin):
     def run_snapshot(self):
 
         self._write_config_files()
+        print(f"Writing yaml to dir: {self.config_dir_path}")
+
+        start = time.time()
 
         self.run_cli_cmd([
             self.replicant_path, "snapshot",
@@ -342,3 +346,7 @@ class ReplicantRunner(ABC, SecretMixin):
             "--map", self.config_file_paths.map,
             "--truncate-existing"
         ])
+
+        end = time.time()
+        elapsed_minutes = (end - start) / 60
+        print(f"Snapshot completed in {elapsed_minutes:.2f} minutes")
