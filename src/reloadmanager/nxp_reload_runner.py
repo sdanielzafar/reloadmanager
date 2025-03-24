@@ -1,4 +1,3 @@
-import random
 from datetime import datetime
 from reloadmanager.core.replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
 
@@ -38,9 +37,6 @@ class NxpReloadRunner(ReplicantRunner):
             max_connections="4",
         )
 
-    def _generate_table_id(self) -> str:
-        return f"{self.source_table.table[:6]}{random.randint(100, 999)}"
-
     def target_config_defaults(self) -> TargetConfig:
 
         ts: str = datetime.now().strftime("%Y%m%d_%H%M%S_") + f"{datetime.now().microsecond // 1000:03d}"
@@ -55,7 +51,7 @@ class NxpReloadRunner(ReplicantRunner):
             max_connections="8",
             supports_timestamp_ntz="false",
             stage_type="S3",
-            stage_root_dir=f"replicant-stage/{self.oauth_client_id}/{self._generate_table_id()}/"
+            stage_root_dir=f"replicant-stage/{self.oauth_client_id}/{self._id}/"
                            f"migration_{self.source_table.table}_{ts}",
             stage_conn_url="1dp-migration-acrion-td-sync",
             stage_key_id=self.aws_key,

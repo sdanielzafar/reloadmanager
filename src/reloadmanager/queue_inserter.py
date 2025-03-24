@@ -1,6 +1,7 @@
 from reloadmanager.core.sqlite_mixin import SQLiteMixin
 from datetime import datetime
 
+
 class QueueInserter(SQLiteMixin):
     def __init__(self, db_path, table_priorities):
         super().__init__(db_path)

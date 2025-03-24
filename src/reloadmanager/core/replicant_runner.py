@@ -1,8 +1,12 @@
+import os
+import random
 import textwrap
 import tempfile
-import os
 from abc import ABC, abstractmethod
+from functools import cached_property
 import time
+from datetime import datetime
+
 from reloadmanager.core.secret_mixin import SecretMixin
 from reloadmanager.core.config_models import *
 from reloadmanager.core.cli_runner import run_cli_cmd
@@ -65,6 +69,10 @@ class ReplicantRunner(ABC, SecretMixin):
             raise Exception(f"Argument target_table must have format catalog.schema.table. Not '{target_table}'")
         return TableInfo(*source_schema_table)
 
+    @cached_property
+    def _id(self) -> str:
+        return f"{self.source_table.table[:6]}{random.randint(100, 999)}"
+
     @abstractmethod
     def config_file_path_defaults(self) -> ConfigFilePaths:
         pass
@@ -105,13 +113,13 @@ class ReplicantRunner(ABC, SecretMixin):
               username: {self.src_config.tpt_connection_un}
               password: {self.src_config.tpt_connection_pass}          
             max-connections: {self.src_config.max_connections}
-            max-retries: 10
+            max-retries: 3
             retry-wait-duration-ms: 1000
             max-conn-retries: 4
             conn-retry-wait-duration-ms: 5000
         """)
 
-        file_path: str = os.path.join(self.config_dir_path, "source.yaml")
+        file_path: str = os.path.join(self.config_dir_path, f"{self._id}_source.yaml")
         with open(file_path, "w") as file:
             file.write(src_yaml)
 
@@ -145,7 +153,7 @@ class ReplicantRunner(ABC, SecretMixin):
               file-format: {self.target_config.stage_file_format}
         """)
 
-        file_path: str = os.path.join(self.config_dir_path, "target.yaml")
+        file_path: str = os.path.join(self.config_dir_path, f"{self._id}_target.yaml")
         with open(file_path, "w") as file:
             file.write(target_yaml)
 
@@ -177,7 +185,7 @@ class ReplicantRunner(ABC, SecretMixin):
                     extraction-method: {self.extr_config.extraction_method}
         """)
 
-        file_path: str = os.path.join(self.config_dir_path, "extractor.yaml")
+        file_path: str = os.path.join(self.config_dir_path, f"{self._id}_extractor.yaml")
         with open(file_path, "w") as file:
             file.write(extractor_yaml)
 
@@ -200,7 +208,7 @@ class ReplicantRunner(ABC, SecretMixin):
               threads: 16
         """)
 
-        file_path: str = os.path.join(self.config_dir_path, "applier.yaml")
+        file_path: str = os.path.join(self.config_dir_path, f"{self._id}_applier.yaml")
         with open(file_path, "w") as file:
             file.write(applier_yaml)
 
@@ -215,7 +223,7 @@ class ReplicantRunner(ABC, SecretMixin):
                 {self.source_table.table} :
         """)
 
-        file_path: str = os.path.join(self.config_dir_path, "allow.yaml")
+        file_path: str = os.path.join(self.config_dir_path, f"{self._id}_allow.yaml")
         with open(file_path, "w") as file:
             file.write(allow_yaml)
 
@@ -227,9 +235,13 @@ class ReplicantRunner(ABC, SecretMixin):
               [{self.target_table.catalog}, {self.target_table.schema}]:
                 source:
                 - {self.target_table.schema}
+                tables:
+                  {self.target_table.table}:
+                    source:
+                      [{self.source_table.schema}, {self.source_table.table}]:
         """)
 
-        file_path: str = os.path.join(self.config_dir_path, "map.yaml")
+        file_path: str = os.path.join(self.config_dir_path, f"{self._id}_map.yaml")
         with open(file_path, "w") as file:
             file.write(map_yaml)
 
@@ -252,7 +264,10 @@ class ReplicantRunner(ABC, SecretMixin):
     def run_snapshot(self):
 
         self._write_config_files()
-        print(f"Writing yaml to dir: {self.config_dir_path}")
+        print(f"\tWriting yaml to dir: {self.config_dir_path}...")
+
+        log_file: str = f"{self.config_dir_path}/{self._id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        print(f"\tLogging to: {log_file}...")
 
         start = time.time()
 
@@ -264,9 +279,10 @@ class ReplicantRunner(ABC, SecretMixin):
             "--applier", self.config_file_paths.applier,
             "--filter", self.config_file_paths.filter,
             "--map", self.config_file_paths.map,
-            "--truncate-existing"
+            "--truncate-existing",
+            "&>", log_file
         ])
 
         end = time.time()
         elapsed_minutes = (end - start) / 60
-        print(f"Snapshot completed in {elapsed_minutes:.2f} minutes")
+        print(f"Success: duration {elapsed_minutes:.2f} minutes")
