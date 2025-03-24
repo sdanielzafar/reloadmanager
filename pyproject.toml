@@ -14,7 +14,7 @@ requires-python = ">=3.10"
 dependencies = ["jaydebeapi>=1.2.3"]
 
 [project.scripts]
-reloadmanager = "reloadmanager.main:main"
+reloadmanager = "reloadmanager.cli.main:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

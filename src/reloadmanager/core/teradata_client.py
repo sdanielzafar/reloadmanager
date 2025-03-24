@@ -6,6 +6,7 @@ class TeradataClient(SecretMixin):
     def __init__(self):
         self.conn: jaydebeapi.Connection | None = None
         self.cursor: jaydebeapi.Cursor | None = None
+        self.load_env_file("/home/arcion/secrets/.env")
         self.td_user: str = self.get_secret("TD_USER")
         self.td_pass: str = self.get_secret("TD_PASS")
 
@@ -14,7 +15,7 @@ class TeradataClient(SecretMixin):
         try:
             self.conn: jaydebeapi.Connection = jaydebeapi.connect(
                 "com.teradata.jdbc.TeraDriver",
-                "jdbc:teradata://edwpc.nxp.com/DATABASE=BACKUPDB,TMODE=TERA",
+                "jdbc:teradata://edwpc.nxp.com/TMODE=TERA",
                 [self.td_user, self.td_pass],
                 "/arcion/replicant-cli/lib/terajdbc-20.00.00.16.jar"
             )
@@ -41,7 +42,6 @@ class TeradataClient(SecretMixin):
                 self.cursor.close()
             if self.conn:
                 self.conn.close()
-            print("Connection to Teradata closed.")
         except Exception as e:
             print(f"Failed to close connection: {e}")
             raise

@@ -1,5 +1,5 @@
 import argparse
-from reloadmanager.cli import reload_table
+from reloadmanager.cli import reload_table, query_teradata
 
 
 def main():
