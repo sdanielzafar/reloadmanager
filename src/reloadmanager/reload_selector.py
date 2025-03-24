@@ -1,15 +1,17 @@
-from reloadmanager.core.sqlite_mixin import SQLiteMixin
+from reloadmanager.clients.sqlite_client import SQLiteClient
 from datetime import datetime
 import time
 
-class ReloadSelector(SQLiteMixin):
+
+class ReloadSelector:
     def __init__(self, db_path, table_priorities):
         super().__init__(db_path)
         self.table_priorities = table_priorities
+        self.sqlite_client = SQLiteClient()
 
     def update_priorities(self):
-        self.execute('SELECT table_name, insert_time FROM QUEUE')
-        rows = self.fetchall()
+        self.sqlite_client.execute('SELECT table_name, insert_time FROM QUEUE')
+        rows = self.sqlite_client.cursor.fetchall()
         for row in rows:
             table_name, insert_time = row
             table_info = self.table_priorities.get_table_info(table_name)
@@ -18,12 +20,12 @@ class ReloadSelector(SQLiteMixin):
             remaining_minutes = max_staleness - elapsed_minutes
             score = self.calculate_score(remaining_minutes)
             priority = score * int(table_info['priority'])
-            self.execute('''
+            self.sqlite_client.execute('''
                 UPDATE QUEUE
                 SET priority = ?
                 WHERE table_name = ?
             ''', (priority, table_name))
-        self.commit()
+        self.sqlite_client.commit()
 
     def calculate_score(self, remaining_minutes):
         if remaining_minutes > 60:
@@ -46,22 +48,22 @@ class ReloadSelector(SQLiteMixin):
     def run(self):
         while True:
             self.update_priorities()
-            self.execute('SELECT table_name FROM QUEUE WHERE status = "Q" ORDER BY priority DESC LIMIT 1')
-            row = self.fetchone()
+            self.sqlite_client.execute('SELECT table_name FROM QUEUE WHERE status = "Q" ORDER BY priority DESC LIMIT 1')
+            row = self.sqlite_client.cursor.fetchone()
             if row:
                 table_name = row[0]
-                self.execute('''
+                self.sqlite_client.execute('''
                     UPDATE QUEUE
                     SET status = "R", trigger_time = ?
                     WHERE table_name = ?
                 ''', (datetime.now(), table_name))
-                self.commit()
+                self.sqlite_client.commit()
                 self.run_job(table_name)
-                self.execute('''
+                self.sqlite_client.execute('''
                     DELETE FROM QUEUE
                     WHERE table_name = ?
                 ''', (table_name,))
-                self.commit()
+                self.sqlite_client.commit()
             else:
                 time.sleep(60)
 

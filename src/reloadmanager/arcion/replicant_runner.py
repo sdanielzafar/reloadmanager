@@ -7,12 +7,14 @@ from functools import cached_property
 import time
 from datetime import datetime
 
-from reloadmanager.core.secret_mixin import SecretMixin
-from reloadmanager.core.config_models import *
-from reloadmanager.core.cli_runner import run_cli_cmd
+from reloadmanager.mixins.secret_mixin import SecretMixin
+from reloadmanager.arcion.config_models import *
+from reloadmanager.arcion.cli_runner import run_cli_cmd
+from reloadmanager.mixins.logging_mixin import LoggingMixin
+from reloadmanager.arcion.stats_tracker import RunStatsTracker
 
 
-class ReplicantRunner(ABC, SecretMixin):
+class ReplicantRunner(ABC, SecretMixin, LoggingMixin):
     """
     This class will run the Arcion Replicant CLI commands
 
@@ -264,10 +266,10 @@ class ReplicantRunner(ABC, SecretMixin):
     def run_snapshot(self):
 
         self._write_config_files()
-        print(f"\tWriting yaml to dir: {self.config_dir_path}...")
+        self.logger.info(f"\tWriting yaml to dir: {self.config_dir_path}...")
 
         log_file: str = f"{self.config_dir_path}/{self._id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        print(f"\tLogging to: {log_file}...")
+        self.logger.info(f"\tLogging to: {log_file}...")
 
         start = time.time()
 
@@ -279,9 +281,15 @@ class ReplicantRunner(ABC, SecretMixin):
             "--applier", self.config_file_paths.applier,
             "--filter", self.config_file_paths.filter,
             "--map", self.config_file_paths.map,
+            "--id", self._id,
             "--truncate-existing"
         ], log_file)
 
         end = time.time()
         elapsed_minutes = (end - start) / 60
-        print(f"Success: duration {elapsed_minutes:.2f} minutes")
+        RunStatsTracker.record(
+            f"{self.source_table.schema}.{self.source_table.table}",
+            "Success",
+            elapsed_minutes
+        )
+        self.logger.info(f"Success: duration {elapsed_minutes:.2f} minutes")

@@ -1,5 +1,5 @@
 import jaydebeapi
-from reloadmanager.core.secret_mixin import SecretMixin
+from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
 class TeradataClient(SecretMixin):
@@ -29,7 +29,6 @@ class TeradataClient(SecretMixin):
         try:
             self.cursor.execute(sql)
             results = self.cursor.fetchall()
-            print(f"Query executed successfully: {sql}")
             return results
         except Exception as e:
             print(f"Failed to execute query: {sql}. Error: {e}")

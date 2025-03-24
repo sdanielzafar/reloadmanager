@@ -1,5 +1,6 @@
 from datetime import datetime
-from reloadmanager.core.replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
+from reloadmanager.arcion.replicant_runner import ReplicantRunner
+from reloadmanager.arcion.config_models import SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
 
 
 class NxpReloadRunner(ReplicantRunner):

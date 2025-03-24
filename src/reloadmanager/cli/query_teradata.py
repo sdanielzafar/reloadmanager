@@ -1,4 +1,4 @@
-from reloadmanager.core.teradata_client import TeradataClient
+from reloadmanager.clients.teradata_client import TeradataClient
 
 
 def main(args):

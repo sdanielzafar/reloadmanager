@@ -1,6 +1,7 @@
 import sqlite3
 
-class SQLiteMixin:
+
+class SQLiteClient:
     def __init__(self, db_path):
         self.db_path = db_path
         self.conn = sqlite3.connect(self.db_path)

@@ -1,5 +1,5 @@
 import pytest
-from reloadmanager.core.sqlite_mixin import SQLiteMixin
+from reloadmanager.clients.sqlite_client import SQLiteMixin
 import sqlite3
 
 @pytest.fixture

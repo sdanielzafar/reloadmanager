@@ -21,6 +21,13 @@ def main():
     reload_parser.add_argument("--query", required=True, help="Query")
     reload_parser.set_defaults(func=query_teradata.main)
 
+    # Subcommand: batch_load_csv
+    reload_parser = subparsers.add_parser("batch_load", help="Reload multiple tables")
+    reload_parser.add_argument("--input-csv", required=True, help="The input csv file")
+    reload_parser.add_argument("--output", required=True, help="The output location")
+    reload_parser.add_argument("--run-name", required=True, help="A name for the run")
+    reload_parser.set_defaults(func=batch_load.main)
+
     args = parser.parse_args()
     args.func(args)
 
