@@ -1,5 +1,4 @@
-from .sqlite_mixin import SQLiteMixin
-from .table_priorities import TablePriorities
+from reloadmanager.core.sqlite_mixin import SQLiteMixin
 from datetime import datetime
 
 class QueueInserter(SQLiteMixin):

@@ -1,6 +1,5 @@
-from .sqlite_mixin import SQLiteMixin
-from .table_priorities import TablePriorities
-from datetime import datetime, timedelta
+from reloadmanager.core.sqlite_mixin import SQLiteMixin
+from datetime import datetime
 import time
 
 class ReloadSelector(SQLiteMixin):

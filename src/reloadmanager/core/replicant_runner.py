@@ -1,74 +1,11 @@
-from dataclasses import dataclass
 import textwrap
 import tempfile
 import os
 from abc import ABC, abstractmethod
-import subprocess
 import time
-from reloadmanager.secret_mixin import SecretMixin
-
-
-@dataclass
-class TableInfo:
-    catalog: str | None
-    schema: str
-    table: str
-
-
-@dataclass
-class SourceConfig:
-    type: str
-    host: str
-    port: str
-    credential_store_type: str
-    credential_store_path: str
-    credential_store_key_prefix: str
-    tpt_connection_host: str
-    tpt_connection_un: str
-    tpt_connection_pass: str
-    max_connections: str
-
-
-@dataclass
-class TargetConfig:
-    type: str
-    host: str
-    port: str
-    url: str
-    username: str
-    password: str
-    max_connections: int | str
-    supports_timestamp_ntz: bool | str
-    stage_type: str
-    stage_root_dir: str
-    stage_conn_url: str
-    stage_key_id: str
-    stage_secret_key: str
-    stage_file_format: str
-
-
-@dataclass
-class ExtractorConfig:
-    threads: int | str
-    fetch_size_rows: str
-    split_method: str
-    extraction_method: str
-    tpt_max_file_size_gb: int | str
-    tpt_num_files_per_job: int | str
-    write_nos_auth_schema: str
-    write_nos_number_precision: int | str
-    write_nos_number_scale: int | str
-    write_nos_cast_str_type: int | str
-
-
-@dataclass
-class ConfigFilePaths:
-    source: str | None
-    target: str | None
-    extractor: str | None
-    applier: str | None
-    filter: str | None
-    map: str | None
+from reloadmanager.core.secret_mixin import SecretMixin
+from reloadmanager.core.config_models import *
+from reloadmanager.core.cli_runner import run_cli_cmd
 
 
 class ReplicantRunner(ABC, SecretMixin):
@@ -298,7 +235,6 @@ class ReplicantRunner(ABC, SecretMixin):
 
         return file_path
 
-    # DZ working on this
     def _write_config_files(self):
         if not self.config_file_paths.source:
             self.config_file_paths.source = self._write_src_config()
@@ -313,22 +249,6 @@ class ReplicantRunner(ABC, SecretMixin):
         if not self.config_file_paths.map:
             self.config_file_paths.map = self._write_map_config()
 
-    @staticmethod
-    def run_cli_cmd(command: list[str]) -> str:
-        try:
-            result = subprocess.run(command, check=True, capture_output=True, text=True)
-            return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            print(f"Command: '{' '.join(command)}' failed with exit code {e.returncode}")
-            stderr: str = "\n\t\t" + e.stderr.strip().replace('\n', '\n\t\t')
-            stdout: str = "\n\t\t" + e.stdout.strip().replace('\n', '\n\t\t')
-            print(f"\tThe command's stderr: {stderr if e.stderr else 'No stderr available'}")
-            print(f"\tThe command's stdout: {stdout if e.stdout else 'No stdout available'}")
-            raise e
-        except Exception as e:
-            print(f"Command: '{' '.join(command)}' failed")
-            raise e
-
     def run_snapshot(self):
 
         self._write_config_files()
@@ -336,7 +256,7 @@ class ReplicantRunner(ABC, SecretMixin):
 
         start = time.time()
 
-        self.run_cli_cmd([
+        run_cli_cmd([
             self.replicant_path, "snapshot",
             self.config_file_paths.source,
             self.config_file_paths.target,

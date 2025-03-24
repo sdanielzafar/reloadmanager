@@ -1,5 +1,5 @@
 import argparse
-from reloadmanager import reload_table
+from reloadmanager.cli import reload_table
 
 
 def main():
@@ -15,6 +15,11 @@ def main():
     reload_parser.add_argument("--replicant-path", required=False, help="Path to Arcion Replicant")
     reload_parser.add_argument("--config-dir-path", required=False, help="Optional path to put config files")
     reload_parser.set_defaults(func=reload_table.main)
+
+    # Subcommand: query_teradata
+    reload_parser = subparsers.add_parser("query-teradata", help="Reload a single table")
+    reload_parser.add_argument("--query", required=True, help="Query")
+    reload_parser.set_defaults(func=query_teradata.main)
 
     args = parser.parse_args()
     args.func(args)

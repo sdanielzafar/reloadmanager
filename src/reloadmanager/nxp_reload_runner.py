@@ -1,6 +1,6 @@
 import random
 from datetime import datetime
-from reloadmanager.replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
+from reloadmanager.core.replicant_runner import ReplicantRunner, SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
 
 
 class NxpReloadRunner(ReplicantRunner):
