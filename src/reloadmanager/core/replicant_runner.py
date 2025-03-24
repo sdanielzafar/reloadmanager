@@ -142,7 +142,7 @@ class ReplicantRunner(ABC, SecretMixin):
             max-retries: 3
             date-format: yyyy-MM-dd #default yyyy-MM-dd, specify the date format if source DB provides dates in a format other than default (yyyy-dd-mm)
             supports-timestamp-ntz: {str(self.target_config.supports_timestamp_ntz).lower()}
-            retry-wait-duration-ms: 1000 #Duration in milliseconds replicant should wait before performing then next retry of a failed operation
+            retry-wait-duration-ms: 1000 #Duration replicant should wait before performing then next retry
             # stage config section
             stage:
               type: {self.target_config.stage_type}
@@ -279,9 +279,8 @@ class ReplicantRunner(ABC, SecretMixin):
             "--applier", self.config_file_paths.applier,
             "--filter", self.config_file_paths.filter,
             "--map", self.config_file_paths.map,
-            "--truncate-existing",
-            "&>", log_file
-        ])
+            "--truncate-existing"
+        ], log_file)
 
         end = time.time()
         elapsed_minutes = (end - start) / 60
