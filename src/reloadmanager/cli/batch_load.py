@@ -2,17 +2,21 @@ import logging
 import time
 import os
 from datetime import datetime
-from reloadmanager.nxp_reload_runner import NxpReloadRunner
+
+from reloadmanager.arcion.nxp_config_builder import NxpConfigBuilder
+from reloadmanager.arcion.replicant_runner import ReplicantRunner
 from reloadmanager.arcion.stats_tracker import RunStatsTracker
 
 
 def reload_table(source_table: str, target_table: str, run_name: str):
-    reloader: NxpReloadRunner = NxpReloadRunner(
-        source_table,
-        target_table,
+
+    builder: NxpConfigBuilder = NxpConfigBuilder(
+        source_table=source_table,
+        target_table=target_table,
         config_dir_path=os.path.expanduser(f"~/batch_loads/configs/{run_name}")
     )
 
+    reloader: ReplicantRunner = ReplicantRunner(builder=builder)
     reloader.run_snapshot()
 
 
@@ -33,25 +37,26 @@ def main(args):
 
     logging.info(f"Found {len(tables)} tables to load...")
 
+    counter: int = 1
     for table in tables:
         if is_run_forbidden():
             logging.info(f"It is {datetime.now()}, cannot run any more tables...")
             break
-        logging.info(f"{table}...")
+        logging.info(f"{counter}/{len(tables)} {table}...")
         start = time.time()
         status = "SUCCESS"
+        error = ""
         try:
             reload_table(table, "1dp_migration_dev_catalog_3573379518104516." + table, args.run_name)
-            logging.info(f"\t{status}")
         except Exception as e:
             status = "FAILED"
             logging.info(f"\t{status}")
-            print(e)
+            error = str(e)
         finally:
             end = time.time()
             elapsed_minutes = (end - start) / 60
-            logging.info(f"\tTook{elapsed_minutes: .2f}")
-            RunStatsTracker.record(table, status, elapsed_minutes)
+            RunStatsTracker.record(table, status, elapsed_minutes, error or "")
+            counter += 1
 
     logging.info(f"Finished all loads, generating report and placing at {args.output}...")
     RunStatsTracker.generate_report(args.output)

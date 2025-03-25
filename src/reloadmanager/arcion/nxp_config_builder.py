@@ -1,18 +1,16 @@
 from datetime import datetime
-from reloadmanager.arcion.replicant_runner import ReplicantRunner
+from reloadmanager.arcion.replicant_config_builder import ReplicantConfigBuilder
 from reloadmanager.arcion.config_models import SourceConfig, ExtractorConfig, TargetConfig, ConfigFilePaths
 
 
-class NxpReloadRunner(ReplicantRunner):
+class NxpConfigBuilder(ReplicantConfigBuilder):
 
     def __init__(self,
                  source_table: str,
                  target_table: str,
-                 replicant_path: str = None,
                  config_dir_path: str = None):
 
-        replicant_path: str = replicant_path or "/arcion/replicant-cli/bin/replicant"
-        super().__init__(source_table, target_table, replicant_path, config_dir_path)
+        super().__init__(source_table, target_table, config_dir_path)
 
         self.load_env_file("/home/arcion/secrets/.env")
         self.oauth_client_id = "7d973a81-6d3a-4e26-99e2-6b10df4bbf41"
@@ -52,7 +50,7 @@ class NxpReloadRunner(ReplicantRunner):
             max_connections="8",
             supports_timestamp_ntz="false",
             stage_type="S3",
-            stage_root_dir=f"replicant-stage/{self.oauth_client_id}/{self._id}/"
+            stage_root_dir=f"replicant-stage/{self.oauth_client_id}/{self.id}/"
                            f"migration_{self.source_table.table}_{ts}",
             stage_conn_url="1dp-migration-acrion-td-sync",
             stage_key_id=self.aws_key,
