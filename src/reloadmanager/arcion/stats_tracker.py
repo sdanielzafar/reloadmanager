@@ -10,6 +10,6 @@ class RunStatsTracker:
         with open(csv_path, 'w') as file:
             if not cls.durations:
                 file.write("No runs recorded.")
-            file.write("TABLE,STATUS,DURATION_MINS")
+            file.write("TABLE,STATUS,DURATION_MINS\n")
             for record in cls.durations:
-                file.write(f"{record[0]},{record[1]},{record[2]: .2f}")
+                file.write(f"{record[0]},{record[1]},{record[2]: .2f}\n")

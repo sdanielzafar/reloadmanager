@@ -1,5 +1,5 @@
 import argparse
-from reloadmanager.cli import reload_table, query_teradata
+from reloadmanager.cli import reload_table, query_teradata, batch_load
 
 
 def main():
@@ -26,8 +26,8 @@ def main():
     reload_parser.add_argument("--input-csv", required=True, help="The input csv file")
     reload_parser.add_argument("--output", required=True, help="The output location")
     reload_parser.add_argument("--run-name", required=True, help="A name for the run")
+    reload_parser.add_argument("--avoid-window", required=False, default=("06:00:00", "18:00:00"))
     reload_parser.set_defaults(func=batch_load.main)
 
     args = parser.parse_args()
     args.func(args)
-

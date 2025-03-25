@@ -55,6 +55,7 @@ class ReplicantRunner(ABC, SecretMixin, LoggingMixin):
         self.extr_config: ExtractorConfig | None = None
         self.config_file_paths: ConfigFilePaths | None = None
         self.config_dir_path = config_dir_path if config_dir_path else tempfile.mkdtemp()
+        os.mkdir(self.config_dir_path)
 
     @staticmethod
     def _validate_source_table(source_table: str) -> TableInfo:
