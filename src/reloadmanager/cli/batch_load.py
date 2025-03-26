@@ -8,11 +8,12 @@ from reloadmanager.arcion.replicant_runner import ReplicantRunner
 from reloadmanager.arcion.stats_tracker import RunStatsTracker
 
 
-def reload_table(source_table: str, target_table: str, run_name: str):
+def reload_table(source_table: str, target_table: str, run_name: str, threads: int):
 
     builder: NxpConfigBuilder = NxpConfigBuilder(
         source_table=source_table,
         target_table=target_table,
+        extractor_threads=threads,
         config_dir_path=os.path.expanduser(f"~/batch_loads/configs/{run_name}")
     )
 
@@ -20,12 +21,22 @@ def reload_table(source_table: str, target_table: str, run_name: str):
     reloader.run_snapshot()
 
 
-def is_run_forbidden() -> bool:
+def respect_time_window(start: int, end: int, asleep: bool = False) -> None:
+    if start > end:
+        raise Exception("Logic assumes start time < end time, please revise code if needed.")
     now = datetime.now().hour
-    return 6 <= now < 18
+    if start <= now < end:
+        if not asleep:
+            logging.info(f"It is {datetime.now()}, putting job to sleep...zzZZzz")
+        time.sleep(60 * 5)
+        respect_time_window(start, end, True)
+    if asleep:
+        logging.info(f"It is {datetime.now()}, waking up job...*yawn*")
 
 
 def main(args):
+
+    start, end = args.avoid_window_utc.split("-")
 
     logging.basicConfig(
         level=logging.INFO,
@@ -39,15 +50,13 @@ def main(args):
 
     counter: int = 1
     for table in tables:
-        if is_run_forbidden():
-            logging.info(f"It is {datetime.now()}, cannot run any more tables...")
-            break
+        respect_time_window(start, end)
         logging.info(f"{counter}/{len(tables)} {table}...")
         start = time.time()
         status = "SUCCESS"
         error = ""
         try:
-            reload_table(table, "1dp_migration_dev_catalog_3573379518104516." + table, args.run_name)
+            reload_table(table, "1dp_migration_dev_catalog_3573379518104516." + table, args.run_name, args.threads)
         except Exception as e:
             status = "FAILED"
             logging.info(f"\t{status}")

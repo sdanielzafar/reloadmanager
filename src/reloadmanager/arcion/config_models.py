@@ -41,7 +41,6 @@ class TargetConfig:
 
 @dataclass
 class ExtractorConfig:
-    threads: int | str
     fetch_size_rows: str
     split_method: str
     extraction_method: str

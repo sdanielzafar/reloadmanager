@@ -14,6 +14,7 @@ def main():
     reload_parser.add_argument("--target-table", required=True, help="Databricks: catalog.schema.table")
     reload_parser.add_argument("--replicant-path", required=False, help="Path to Arcion Replicant")
     reload_parser.add_argument("--config-dir-path", required=False, help="Optional path to put config files")
+    reload_parser.add_argument("--threads", required=False, help="Optional num threads to use (default: 2)", default=2)
     reload_parser.set_defaults(func=reload_table.main)
 
     # Subcommand: query_teradata
@@ -26,7 +27,8 @@ def main():
     reload_parser.add_argument("--input-csv", required=True, help="The input csv file")
     reload_parser.add_argument("--output", required=True, help="The output location")
     reload_parser.add_argument("--run-name", required=True, help="A name for the run")
-    reload_parser.add_argument("--avoid-window", required=False, default=("06:00:00", "18:00:00"))
+    reload_parser.add_argument("--avoid-window-utc", required=False, default="6-18")
+    reload_parser.add_argument("--threads", required=False, help="Optional num threads to use (default: 2)", default=2)
     reload_parser.set_defaults(func=batch_load.main)
 
     args = parser.parse_args()

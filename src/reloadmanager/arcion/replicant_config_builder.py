@@ -40,9 +40,11 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
     def __init__(self,
                  source_table: str,
                  target_table: str,
+                 extractor_threads: int = None,
                  config_dir_path: str = None):
         self.source_table: TableInfo = self._validate_source_table(source_table)
         self.target_table: TableInfo = self._validate_target_table(target_table)
+        self.extractor_threads: int = extractor_threads
 
         self.config_dir_path = config_dir_path if config_dir_path else tempfile.mkdtemp()
         os.makedirs(self.config_dir_path, exist_ok=True)
@@ -161,7 +163,7 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
 
         extractor_yaml: str = textwrap.dedent(f"""
             snapshot:
-              threads: {str(self.extr_config.threads)}
+              threads: {str(self.extractor_threads)}
               fetch-size-rows: {self.extr_config.fetch_size_rows}
               _traceDBTasks: true
               split-method: {self.extr_config.split_method}  # Allowed values are RANGE, MODULO
