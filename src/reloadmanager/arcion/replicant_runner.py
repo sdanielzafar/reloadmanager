@@ -2,13 +2,32 @@ import logging
 import os.path
 import time
 from datetime import datetime
+from dataclasses import dataclass
 
 # for error handler
 import re
+from collections import deque
+from functools import cached_property
 
 from reloadmanager.arcion.replicant_config_builder import ReplicantConfigBuilder
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.arcion.cli_runner import run_cli_cmd
+
+
+@dataclass(frozen=True)
+class SnapshotMetrics:
+    start: float
+    end: float
+    num_records: int
+
+    @property
+    def duration(self) -> float:
+        return (self.end - self.start) / 60
+
+
+class ReplicantRunError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
 
 
 class ReplicantRunner(LoggingMixin):
@@ -19,8 +38,10 @@ class ReplicantRunner(LoggingMixin):
         self.replicant_path: str = replicant_path or "/arcion/replicant-cli/bin/replicant"
         self.builder: ReplicantConfigBuilder = builder
         self.error_log_path: str = f"/arcion/replicant-cli/data/{self.builder.id.lower()}/error_trace.log"
+        self.log_file: str = ""
 
-    def find_error(self) -> str:
+    @cached_property
+    def error(self) -> str:
 
         if not os.path.exists(self.error_log_path):
             logging.debug(f"No error_trace.log found in {self.error_log_path}")
@@ -38,19 +59,47 @@ class ReplicantRunner(LoggingMixin):
             return unique_errors.pop()
         return ""
 
-    class ReplicantRunError(Exception):
-        def __init__(self, message: str):
-            super().__init__(message)
+    @cached_property
+    def num_records(self) -> int:
+        if not os.path.exists(self.log_file):
+            raise Exception(f"No log file found: {self.log_file}")
 
-    def run_snapshot(self):
+        # open the file and go to the end, only keeping 10 lines in memory at a time
+        with open(self.log_file, "r") as f:
+            last_5_lines: list[str] = [line.strip() for line in deque(f, 10)]
+
+        row_count_re: re.Pattern = re.compile(r"[^ ]* +([0-9]+) +.*")
+        num_records: str = next(
+            (row_count_re.match(s).groups()[0] for s in reversed(last_5_lines) if row_count_re.match(s)),
+            None
+        )
+        if not num_records:
+            raise Exception(f"Issue parsing log file: {str(last_5_lines)}")
+
+        return int(num_records)
+
+    def handle_failure(self, failure: bool, elapsed_minutes):
+        if failure | bool(self.error):
+            if self.error:
+                if self.num_records:
+                    self.logger.info(f"Failure: duration {elapsed_minutes:.2f} minutes")
+                    raise ReplicantRunError(self.error)
+                else:
+                    self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS.")
+            else:
+                self.logger.info(f"Failure: duration {elapsed_minutes:.2f} minutes")
+                raise ReplicantRunError(f"Unknown error, check logs at: {self.error_log_path}")
+
+    def run_snapshot(self) -> SnapshotMetrics:
 
         self.builder.write_config_files()
         self.logger.info(f"\tWriting yaml to dir: {self.builder.config_dir_path}...")
 
-        log_file: str = f"{self.builder.config_dir_path}/{self.builder.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        self.logger.info(f"\tLogging to: {log_file}...")
+        self.log_file = \
+            f"{self.builder.config_dir_path}/{self.builder.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        self.logger.info(f"\tLogging to: {self.log_file}...")
 
-        start = time.time()
+        start: float = time.time()
 
         failure: bool = False
         try:
@@ -64,21 +113,14 @@ class ReplicantRunner(LoggingMixin):
                 "--map", self.builder.config_file_paths.map,
                 "--id", self.builder.id,
                 "--truncate-existing"
-            ], log_file)
-        except Exception as e:
+            ], self.log_file)
+        except Exception:
             self.logger.warning("Replicant failed")
             failure = True
 
-        end = time.time()
-        elapsed_minutes = (end - start) / 60
+        metrics = SnapshotMetrics(start=start, end=time.time(), num_records=self.num_records)
 
-        error: str = self.find_error()
+        self.handle_failure(failure, metrics.duration)
+        self.logger.info(f"Success: duration {metrics.duration:.2f} minutes")
 
-        if failure | bool(error):
-            self.logger.info(f"Failure: duration {elapsed_minutes:.2f} minutes")
-            if error:
-                raise self.ReplicantRunError(error)
-            else:
-                raise self.ReplicantRunError(f"Unknown error, check logs at: {self.error_log_path}")
-
-        self.logger.info(f"Success: duration {elapsed_minutes:.2f} minutes")
+        return metrics

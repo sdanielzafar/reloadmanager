@@ -1,15 +1,33 @@
 import logging
 import time
 import os
+from dataclasses import dataclass
 from datetime import datetime
 
+from reloadmanager.utils.avoid_window import AvoidWindow
 from reloadmanager.arcion.nxp_config_builder import NxpConfigBuilder
-from reloadmanager.arcion.replicant_runner import ReplicantRunner
-from reloadmanager.arcion.stats_tracker import RunStatsTracker
+from reloadmanager.arcion.replicant_runner import ReplicantRunner, ReplicantRunError
+from reloadmanager.arcion.replicant_runner import SnapshotMetrics
 
 
-def reload_table(source_table: str, target_table: str, run_name: str, threads: int):
+@dataclass(frozen=True)
+class ReportRecord:
+    table: str
+    status: str
+    start: float
+    end: float
+    duration: float
+    num_records: int
+    error: str
 
+    def __str__(self):
+        start_str = datetime.fromtimestamp(self.start).strftime('%-m/%-d/%y %-I:%M %p')
+        end_str = datetime.fromtimestamp(self.end).strftime('%-m/%-d/%y %-I:%M %p')
+        return f"{self.table},{self.status},{start_str},{end_str}," \
+               f"{self.duration:.2f},{self.num_records},{self.error}\n"
+
+
+def reload_table(source_table: str, target_table: str, run_name: str, threads: int) -> ReportRecord:
     builder: NxpConfigBuilder = NxpConfigBuilder(
         source_table=source_table,
         target_table=target_table,
@@ -18,25 +36,45 @@ def reload_table(source_table: str, target_table: str, run_name: str, threads: i
     )
 
     reloader: ReplicantRunner = ReplicantRunner(builder=builder)
-    reloader.run_snapshot()
+
+    status = "SUCCESS"
+    error = ""
+    num_records: int = 0
+    start: float = time.time()
+    try:
+        metrics: SnapshotMetrics = reloader.run_snapshot()
+        num_records = metrics.num_records
+    except ReplicantRunError as e:
+        status = "FAILED"
+        logging.info(f"\t{status}")
+        error = repr(e) or ""
+    finally:
+        end: float = time.time()
+
+    return ReportRecord(source_table, status, start, end, (end - start) / 60, num_records, error)
 
 
-def respect_time_window(start: int, end: int, asleep: bool = False) -> None:
-    if start > end:
-        raise Exception(f"Logic assumes start time < end time, please revise code if needed. {start} > {end}")
-    now = datetime.now().hour
-    if start <= now < end:
-        if not asleep:
-            logging.info(f"It is {datetime.now()}, putting job to sleep...zzZZzz")
-        time.sleep(60 * 5)
-        respect_time_window(start, end, True)
-    if asleep:
-        logging.info(f"It is {datetime.now()}, waking up job...*yawn*")
+def report_writer(file_path):
+    first_call = True
+
+    def write_row(record: ReportRecord):
+        nonlocal first_call
+
+        mode = 'w' if first_call else 'a'
+        with open(file_path, mode) as file:
+            # On the first call, write header
+            if first_call:
+                logging.info(f"Creating report and placing at {file_path}...")
+                file.write("TABLE,STATUS,START,END,DURATION_MINS,NUM_RECORDS,ERROR\n")
+                first_call = False
+
+            file.write(str(record))
+
+    return write_row
 
 
 def main(args):
-
-    start, end = [int(t) for t in args.avoid_window_utc.split("-")]
+    avoid_window: AvoidWindow = AvoidWindow(args.avoid_window_utc)
 
     level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(level, int):
@@ -51,25 +89,18 @@ def main(args):
         tables = [line.strip() for line in f]
 
     logging.info(f"Found {len(tables)} tables to load...")
+    add_to_report = report_writer(args.output)
+    for i, table in enumerate(tables):
+        avoid_window.check()
+        logging.info(f"{i + 1}/{len(tables)} {table}...")
 
-    counter: int = 1
-    for table in tables:
-        respect_time_window(start, end)
-        logging.info(f"{counter}/{len(tables)} {table}...")
-        start = time.time()
-        status = "SUCCESS"
-        error = ""
-        try:
-            reload_table(table, "1dp_migration_dev_catalog_3573379518104516." + table, args.run_name, args.threads)
-        except Exception as e:
-            status = "FAILED"
-            logging.info(f"\t{status}")
-            error = str(e)
-        finally:
-            end = time.time()
-            elapsed_minutes = (end - start) / 60
-            RunStatsTracker.record(table, status, elapsed_minutes, error or "")
-            counter += 1
+        reload_summary: ReportRecord = reload_table(
+            table,
+            "1dp_migration_dev_catalog_3573379518104516." + table,
+            args.run_name,
+            args.threads
+        )
 
-    logging.info(f"Finished all loads, generating report and placing at {args.output}...")
-    RunStatsTracker.generate_report(args.output)
+        add_to_report(reload_summary)
+
+    logging.info(f"Finished all loads, report is at {args.output}...")
