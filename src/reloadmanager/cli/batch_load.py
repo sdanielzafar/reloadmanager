@@ -23,7 +23,7 @@ def reload_table(source_table: str, target_table: str, run_name: str, threads: i
 
 def respect_time_window(start: int, end: int, asleep: bool = False) -> None:
     if start > end:
-        raise Exception("Logic assumes start time < end time, please revise code if needed.")
+        raise Exception(f"Logic assumes start time < end time, please revise code if needed. {start} > {end}")
     now = datetime.now().hour
     if start <= now < end:
         if not asleep:
@@ -36,10 +36,14 @@ def respect_time_window(start: int, end: int, asleep: bool = False) -> None:
 
 def main(args):
 
-    start, end = args.avoid_window_utc.split("-")
+    start, end = [int(t) for t in args.avoid_window_utc.split("-")]
+
+    level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(level, int):
+        raise ValueError(f"Invalid log level: {args.log_level}")
 
     logging.basicConfig(
-        level=logging.INFO,
+        level=level,
         format="%(asctime)s [%(levelname)s] %(message)s"
     )
 

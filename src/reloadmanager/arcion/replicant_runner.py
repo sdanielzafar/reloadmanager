@@ -1,3 +1,4 @@
+import logging
 import os.path
 import time
 from datetime import datetime
@@ -22,6 +23,7 @@ class ReplicantRunner(LoggingMixin):
     def find_error(self) -> str:
 
         if not os.path.exists(self.error_log_path):
+            logging.debug(f"No error_trace.log found in {self.error_log_path}")
             return ""
 
         with open(self.error_log_path, "r") as f:
@@ -32,6 +34,7 @@ class ReplicantRunner(LoggingMixin):
             unique_errors: set[str] = set([line for line in f if error_re.search(line)])
 
         if unique_errors:
+            logging.debug(f"Errors found...{str(unique_errors)}")
             return unique_errors.pop()
         return ""
 
@@ -69,9 +72,10 @@ class ReplicantRunner(LoggingMixin):
         end = time.time()
         elapsed_minutes = (end - start) / 60
 
-        if failure:
+        error: str = self.find_error()
+
+        if failure | bool(error):
             self.logger.info(f"Failure: duration {elapsed_minutes:.2f} minutes")
-            error: str = self.find_error()
             if error:
                 raise self.ReplicantRunError(error)
             else:

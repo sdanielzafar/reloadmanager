@@ -1,4 +1,44 @@
-2025-03-25 05:50:19.179 ERROR [pool-39-thread-4] tech.replicant.db.jdbc.databricks.DatabricksSnapshotApplier: Error occurred while executing optimized bulk load for table 1DP_MIGRATION_DEV_CATALOG_3573379518104516.SPROMIS_T.HIST_LOT_SHIP: 
+2025-03-26 19:35:33.325 ERROR [pool-39-thread-6] tech.replicant.db.jdbc.databricks.DatabricksSnapshotApplier: Error occurred while executing optimized bulk load for table 1DP_MIGRATION_DEV_CATALOG_3573379518104516.REFERENCE_BASE_T.PLM_CENTER_TV:
+java.sql.SQLException: [Databricks][JDBCDriver](500051) ERROR processing query/statement. Error Code: 0, SQL state: 22001, Query: COPY INTO ***, Error message from Server: org.apache.hive.service.cli.HiveSQLException: Error running query: [DELTA_EXCEED_CHAR_VARCHAR_LIMIT] com.databricks.sql.transaction.tahoe.schema.DeltaInvariantViolationException: [DELTA_EXCEED_CHAR_VARCHAR_LIMIT] Value "YX" exceeds char/varchar type length limitation. Failed check: ((MARKING_CHARACTER IS NULL) OR (length(MARKING_CHARACTER) <= 1)).
+        at org.apache.spark.sql.hive.thriftserver.HiveThriftServerErrors$.runningQueryError(HiveThriftServerErrors.scala:49)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation.$anonfun$execute$1(SparkExecuteStatementOperation.scala:929)
+        at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+        at com.databricks.unity.UCSEphemeralState$Handle.runWith(UCSEphemeralState.scala:51)
+        at com.databricks.unity.HandleImpl.runWith(UCSHandle.scala:104)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation.org$apache$spark$sql$hive$thriftserver$SparkExecuteStatementOperation$$execute(SparkExecuteStatementOperation.scala:727)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation$$anon$2$$anon$3.$anonfun$run$5(SparkExecuteStatementOperation.scala:544)
+        at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+        at org.apache.spark.sql.execution.SQLExecution$.withRootExecution(SQLExecution.scala:667)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation$$anon$2$$anon$3.$anonfun$run$2(SparkExecuteStatementOperation.scala:544)
+        at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+        at com.databricks.logging.AttributionContextTracing.$anonfun$withAttributionContext$1(AttributionContextTracing.scala:49)
+        at com.databricks.logging.AttributionContext$.$anonfun$withValue$1(AttributionContext.scala:293)
+        at scala.util.DynamicVariable.withValue(DynamicVariable.scala:62)
+        at com.databricks.logging.AttributionContext$.withValue(AttributionContext.scala:289)
+        at com.databricks.logging.AttributionContextTracing.withAttributionContext(AttributionContextTracing.scala:47)
+        at com.databricks.logging.AttributionContextTracing.withAttributionContext$(AttributionContextTracing.scala:44)
+        at com.databricks.spark.util.PublicDBLogging.withAttributionContext(DatabricksSparkUsageLogger.scala:30)
+        at com.databricks.logging.AttributionContextTracing.withAttributionTags(AttributionContextTracing.scala:96)
+        at com.databricks.logging.AttributionContextTracing.withAttributionTags$(AttributionContextTracing.scala:77)
+        at com.databricks.spark.util.PublicDBLogging.withAttributionTags(DatabricksSparkUsageLogger.scala:30)
+        at com.databricks.spark.util.PublicDBLogging.withAttributionTags0(DatabricksSparkUsageLogger.scala:91)
+        at com.databricks.spark.util.DatabricksSparkUsageLogger.withAttributionTags(DatabricksSparkUsageLogger.scala:195)
+        at com.databricks.spark.util.UsageLogging.$anonfun$withAttributionTags$1(UsageLogger.scala:617)
+        at com.databricks.spark.util.UsageLogging$.withAttributionTags(UsageLogger.scala:729)
+        at com.databricks.spark.util.UsageLogging$.withAttributionTags(UsageLogger.scala:738)
+        at com.databricks.spark.util.UsageLogging.withAttributionTags(UsageLogger.scala:617)
+        at com.databricks.spark.util.UsageLogging.withAttributionTags$(UsageLogger.scala:615)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation.withAttributionTags(SparkExecuteStatementOperation.scala:72)
+        at org.apache.spark.sql.hive.thriftserver.ThriftLocalProperties.$anonfun$withLocalProperties$12(ThriftLocalProperties.scala:234)
+        at com.databricks.spark.util.IdentityClaim$.withClaim(IdentityClaim.scala:48)
+        at org.apache.spark.sql.hive.thriftserver.ThriftLocalProperties.withLocalProperties(ThriftLocalProperties.scala:229)
+        at org.apache.spark.sql.hive.thriftserver.ThriftLocalProperties.withLocalProperties$(ThriftLocalProperties.scala:89)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation.withLocalProperties(SparkExecuteStatementOperation.scala:72)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation$$anon$2$$anon$3.run(SparkExecuteStatementOperation.scala:521)
+        at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation$$anon$2$$anon$3.run(SparkExecuteStatementOperation.scala:507)
+        at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+
+2025-03-25 05:50:19.179 ERROR [pool-39-thread-4] tech.replicant.db.jdbc.databricks.DatabricksSnapshotApplier: Error occurred while executing optimized bulk load for table 1DP_MIGRATION_DEV_CATALOG_3573379518104516.SPROMIS_T.HIST_LOT_SHIP:
 java.sql.SQLException: [Databricks][JDBCDriver](500051) ERROR processing query/statement. Error Code: 0, SQL state: 42501, Query: COPY INTO ***, Error message from Server: org.apache.hive.service.cli.HiveSQLException: Error running query: [UNAUTHORIZED_ACCESS] com.databricks.sql.managedcatalog.acl.UnauthorizedAccessException: PERMISSION_DENIED: User does not have READ FILES on External Location '1dp-arcion-storage'.
 	at org.apache.spark.sql.hive.thriftserver.HiveThriftServerErrors$.runningQueryError(HiveThriftServerErrors.scala:49)
 	at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation.$anonfun$execute$1(SparkExecuteStatementOperation.scala:929)
@@ -525,7 +565,7 @@ Caused by: com.databricks.sql.managedcatalog.acl.UnauthorizedAccessException: PE
 		... 50 more
 .
 	... 27 more
-2025-03-25 05:50:20.678 ERROR [pool-39-thread-4] tech.replicant.db.jdbc.databricks.DatabricksSnapshotApplier: Error occurred while executing optimized bulk load for table 1DP_MIGRATION_DEV_CATALOG_3573379518104516.SPROMIS_T.HIST_LOT_SHIP: 
+2025-03-25 05:50:20.678 ERROR [pool-39-thread-4] tech.replicant.db.jdbc.databricks.DatabricksSnapshotApplier: Error occurred while executing optimized bulk load for table 1DP_MIGRATION_DEV_CATALOG_3573379518104516.SPROMIS_T.HIST_LOT_SHIP:
 java.sql.SQLException: [Databricks][JDBCDriver](500051) ERROR processing query/statement. Error Code: 0, SQL state: 42501, Query: COPY INTO ***, Error message from Server: org.apache.hive.service.cli.HiveSQLException: Error running query: [UNAUTHORIZED_ACCESS] com.databricks.sql.managedcatalog.acl.UnauthorizedAccessException: PERMISSION_DENIED: User does not have READ FILES on External Location '1dp-arcion-storage'.
 	at org.apache.spark.sql.hive.thriftserver.HiveThriftServerErrors$.runningQueryError(HiveThriftServerErrors.scala:49)
 	at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation.$anonfun$execute$1(SparkExecuteStatementOperation.scala:929)
@@ -1052,7 +1092,7 @@ Caused by: com.databricks.sql.managedcatalog.acl.UnauthorizedAccessException: PE
 		... 50 more
 .
 	... 27 more
-2025-03-25 05:50:22.215 ERROR [pool-39-thread-4] tech.replicant.db.jdbc.databricks.DatabricksSnapshotApplier: Error occurred while executing optimized bulk load for table 1DP_MIGRATION_DEV_CATALOG_3573379518104516.SPROMIS_T.HIST_LOT_SHIP: 
+2025-03-25 05:50:22.215 ERROR [pool-39-thread-4] tech.replicant.db.jdbc.databricks.DatabricksSnapshotApplier: Error occurred while executing optimized bulk load for table 1DP_MIGRATION_DEV_CATALOG_3573379518104516.SPROMIS_T.HIST_LOT_SHIP:
 java.sql.SQLException: [Databricks][JDBCDriver](500051) ERROR processing query/statement. Error Code: 0, SQL state: 42501, Query: COPY INTO ***, Error message from Server: org.apache.hive.service.cli.HiveSQLException: Error running query: [UNAUTHORIZED_ACCESS] com.databricks.sql.managedcatalog.acl.UnauthorizedAccessException: PERMISSION_DENIED: User does not have READ FILES on External Location '1dp-arcion-storage'.
 	at org.apache.spark.sql.hive.thriftserver.HiveThriftServerErrors$.runningQueryError(HiveThriftServerErrors.scala:49)
 	at org.apache.spark.sql.hive.thriftserver.SparkExecuteStatementOperation.$anonfun$execute$1(SparkExecuteStatementOperation.scala:929)
@@ -1580,7 +1620,7 @@ Caused by: com.databricks.sql.managedcatalog.acl.UnauthorizedAccessException: PE
 .
 	... 27 more
 2025-03-25 05:50:23.375 ERROR [main] tech.replicant.Main: Replication error
-tech.replicant.common.ApplierException: optimized bulk-load failed. 
+tech.replicant.common.ApplierException: optimized bulk-load failed.
 	at tech.replicant.db.jdbc.olap.OlapSnapshotApplier.a(SourceFile:7352) ~[replicant-core.jar:?]
 	at tech.replicant.db.DBSnapshotApplier.a(SourceFile:2896) ~[replicant-core.jar:?]
 	at tech.replicant.db.DBSnapshotApplier$StmtBatchPool.a(SourceFile:650) ~[replicant-core.jar:?]

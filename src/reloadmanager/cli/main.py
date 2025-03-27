@@ -18,18 +18,19 @@ def main():
     reload_parser.set_defaults(func=reload_table.main)
 
     # Subcommand: query_teradata
-    reload_parser = subparsers.add_parser("query-teradata", help="Reload a single table")
-    reload_parser.add_argument("--query", required=True, help="Query")
-    reload_parser.set_defaults(func=query_teradata.main)
+    td_query_parser = subparsers.add_parser("query-teradata", help="Reload a single table")
+    td_query_parser.add_argument("--query", required=True, help="Query")
+    td_query_parser.set_defaults(func=query_teradata.main)
 
     # Subcommand: batch_load_csv
-    reload_parser = subparsers.add_parser("batch-load", help="Reload multiple tables")
-    reload_parser.add_argument("--input-csv", required=True, help="The input csv file")
-    reload_parser.add_argument("--output", required=True, help="The output location")
-    reload_parser.add_argument("--run-name", required=True, help="A name for the run")
-    reload_parser.add_argument("--avoid-window-utc", required=False, default="6-18")
-    reload_parser.add_argument("--threads", required=False, help="Optional num threads to use (default: 2)", default=2)
-    reload_parser.set_defaults(func=batch_load.main)
+    batch_load_parser = subparsers.add_parser("batch-load", help="Reload multiple tables")
+    batch_load_parser.add_argument("--input-csv", required=True, help="The input csv file")
+    batch_load_parser.add_argument("--output", required=True, help="The output location")
+    batch_load_parser.add_argument("--run-name", required=True, help="A name for the run")
+    batch_load_parser.add_argument("--avoid-window-utc", required=False, default="6-18")
+    batch_load_parser.add_argument("--threads", required=False, help="Optional num threads to use (default: 2)", default=2)
+    batch_load_parser.add_argument("--log-level", required=False, help="Optional log level", default="INFO")
+    batch_load_parser.set_defaults(func=batch_load.main)
 
     args = parser.parse_args()
     args.func(args)
