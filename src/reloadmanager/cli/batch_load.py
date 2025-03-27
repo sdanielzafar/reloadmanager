@@ -27,11 +27,12 @@ class ReportRecord:
                f"{self.duration:.2f},{self.num_records},{self.error}\n"
 
 
-def reload_table(source_table: str, target_table: str, run_name: str, threads: int) -> ReportRecord:
+def reload_table(source_table: str, target_table: str, run_name: str, threads: int, lock_rows: bool) -> ReportRecord:
     builder: NxpConfigBuilder = NxpConfigBuilder(
         source_table=source_table,
         target_table=target_table,
         extractor_threads=threads,
+        lock_rows=lock_rows,
         config_dir_path=os.path.expanduser(f"~/batch_loads/configs/{run_name}")
     )
 
@@ -98,7 +99,8 @@ def main(args):
             table,
             "1dp_migration_dev_catalog_3573379518104516." + table,
             args.run_name,
-            args.threads
+            args.threads,
+            args.lock_rows
         )
 
         add_to_report(reload_summary)

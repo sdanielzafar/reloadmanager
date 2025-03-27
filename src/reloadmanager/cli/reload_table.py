@@ -13,6 +13,7 @@ def main(args):
         source_table=args.source_table,
         target_table=args.target_table,
         extractor_threads=args.threads,
+        lock_rows=args.lock_rows,
         config_dir_path=args.config_dir_path
     )
 

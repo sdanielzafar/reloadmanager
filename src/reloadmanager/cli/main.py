@@ -15,6 +15,7 @@ def main():
     reload_parser.add_argument("--replicant-path", required=False, help="Path to Arcion Replicant")
     reload_parser.add_argument("--config-dir-path", required=False, help="Optional path to put config files")
     reload_parser.add_argument("--threads", required=False, help="Optional num threads to use (default: 2)", default=2)
+    reload_parser.add_argument("--lock-rows", required=False, help="Whether to enable row locking", default=False)
     reload_parser.set_defaults(func=reload_table.main)
 
     # Subcommand: query_teradata
@@ -28,7 +29,8 @@ def main():
     batch_load_parser.add_argument("--output", required=True, help="The output location")
     batch_load_parser.add_argument("--run-name", required=True, help="A name for the run")
     batch_load_parser.add_argument("--avoid-window-utc", required=False, default="6-18")
-    batch_load_parser.add_argument("--threads", required=False, help="Optional num threads to use (default: 2)", default=2)
+    batch_load_parser.add_argument("--threads", required=False, help="Optional # threads (default: 2)", default=2)
+    batch_load_parser.add_argument("--lock-rows", required=False, help="Whether to enable row locking", default=False)
     batch_load_parser.add_argument("--log-level", required=False, help="Optional log level", default="INFO")
     batch_load_parser.set_defaults(func=batch_load.main)
 
