@@ -9,9 +9,11 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
                  source_table: str,
                  target_table: str,
                  config_dir_path: str = None,
-                 extractor_threads: int = 2):
+                 extractor_threads: int = 2,
+                 lock_rows: bool = False
+                 ):
 
-        super().__init__(source_table, target_table, extractor_threads, config_dir_path)
+        super().__init__(source_table, target_table, extractor_threads, lock_rows, config_dir_path)
 
         self.load_env_file("/home/arcion/secrets/.env")
         self.oauth_client_id = "7d973a81-6d3a-4e26-99e2-6b10df4bbf41"
@@ -69,7 +71,7 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
             write_nos_auth_schema="EDW_DB_SYNC_USER",
             write_nos_number_precision="38",
             write_nos_number_scale="10",
-            write_nos_cast_str_type="true"
+            cast_varchar_type="true"
         )
 
     def config_file_path_defaults(self) -> ConfigFilePaths:

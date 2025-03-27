@@ -49,7 +49,7 @@ class ExtractorConfig:
     write_nos_auth_schema: str
     write_nos_number_precision: int | str
     write_nos_number_scale: int | str
-    write_nos_cast_str_type: int | str
+    cast_varchar_type: bool | str
 
 
 @dataclass

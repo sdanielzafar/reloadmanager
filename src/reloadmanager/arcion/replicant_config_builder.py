@@ -41,10 +41,12 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
                  source_table: str,
                  target_table: str,
                  extractor_threads: int = None,
+                 lock_rows: bool = False,
                  config_dir_path: str = None):
         self.source_table: TableInfo = self._validate_source_table(source_table)
         self.target_table: TableInfo = self._validate_target_table(target_table)
         self.extractor_threads: int = extractor_threads
+        self.lock_rows: bool = lock_rows
 
         self.config_dir_path = config_dir_path if config_dir_path else tempfile.mkdtemp()
         os.makedirs(self.config_dir_path, exist_ok=True)
@@ -168,12 +170,13 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
               _traceDBTasks: true
               split-method: {self.extr_config.split_method}  # Allowed values are RANGE, MODULO
               extraction-method: {self.extr_config.extraction_method}
+              locking-row-for-access: {str(self.lock_rows).lower()}
               tpt-max-file-size-gb: {str(self.extr_config.tpt_max_file_size_gb)}
               tpt-num-files-per-job: {str(self.extr_config.tpt_num_files_per_job)}
               write-nos-auth-schema: {self.extr_config.write_nos_auth_schema}
               write-nos-number-precision: {str(self.extr_config.write_nos_number_precision)}
               write-nos-number-scale: {str(self.extr_config.write_nos_number_scale)}
-              write-nos-cast-str-type: {str(self.extr_config.write_nos_cast_str_type).lower()}
+              cast-varchar-type: {str(self.extr_config.cast_varchar_type).lower()}
               native-extract-options:
                 charset: "UTF8"  #Allowed values are ASCII, UTF8
                 compression-type: "NONE" #Allowed values are GZIP and NONE
