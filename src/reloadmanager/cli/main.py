@@ -15,7 +15,6 @@ def main():
     reload_parser.add_argument("--method", required=False, help="'WriteNOS' or 'TPT", default="WriteNOS")
     reload_parser.add_argument("--replicant-path", required=False, help="Path to Arcion Replicant")
     reload_parser.add_argument("--config-dir-path", required=False, help="Optional path to put config files")
-    reload_parser.add_argument("--threads", required=False, help="Optional num threads to use (default: 2)", default=2)
     reload_parser.add_argument("--lock-rows", required=False, help="Whether to enable row locking", default=True)
     reload_parser.set_defaults(func=reload_table.main)
 
