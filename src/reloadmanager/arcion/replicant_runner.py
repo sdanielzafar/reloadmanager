@@ -68,7 +68,7 @@ class ReplicantRunner(LoggingMixin):
         with open(self.log_file, "r") as f:
             last_10_lines: list[str] = [line.strip() for line in deque(f, 10)]
 
-        if "replicant existed with error code" in last_10_lines[-1]:
+        if "replicant exited with error code" in "|".join(last_10_lines):
             return 0
 
         row_count_re: re.Pattern = re.compile(r"[^ ]* +([0-9]+) +.*")
