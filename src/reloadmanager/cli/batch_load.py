@@ -30,11 +30,11 @@ class ReportRecord:
                f"{self.duration:.2f},{self.num_records},{self.error}\n"
 
 
-def reload_table(source_table: str, target_table: str, run_name: str, threads: int, lock_rows: bool) -> ReportRecord:
+def reload_table(source_table: str, target_table: str, run_name: str, method: str, lock_rows: bool) -> ReportRecord:
     builder: NxpConfigBuilder = NxpConfigBuilder(
         source_table=source_table,
         target_table=target_table,
-        extractor_threads=threads,
+        method=method,
         lock_rows=lock_rows,
         config_dir_path=os.path.expanduser(f"~/batch_loads/configs/{run_name}")
     )

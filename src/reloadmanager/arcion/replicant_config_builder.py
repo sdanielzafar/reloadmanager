@@ -40,12 +40,12 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
     def __init__(self,
                  source_table: str,
                  target_table: str,
-                 extractor_threads: int = None,
+                 method: str = "WriteNos",
                  lock_rows: bool = False,
                  config_dir_path: str = None):
         self.source_table: TableInfo = self._validate_source_table(source_table)
         self.target_table: TableInfo = self._validate_target_table(target_table)
-        self.extractor_threads: int = extractor_threads
+        self.extract_method = self._validate_extract_method(method)
         self.lock_rows: bool = lock_rows
 
         self.config_dir_path = config_dir_path if config_dir_path else tempfile.mkdtemp()
@@ -70,6 +70,16 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
         if len(source_schema_table) != 3:
             raise Exception(f"Argument target_table must have format catalog.schema.table. Not '{target_table}'")
         return TableInfo(*source_schema_table)
+
+    @staticmethod
+    def _validate_extract_method(method: str) -> str:
+        match method:
+            case 'TPT':
+                return "TPT"
+            case 'WriteNOS':
+                return "TERADATA_WRITE_NOS"
+            case _:
+                raise ValueError("'method' must be either 'TPT' or 'WriteNOS'")
 
     @cached_property
     def id(self) -> str:
@@ -163,19 +173,23 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
 
     def _write_extractor_config(self) -> str:
 
+        comment_tpt = "# " if self.extract_method == "TERADATA_WRITE_NOS" else ""
+        comment_nos = "# " if self.extract_method == "TPT" else ""
+
         extractor_yaml: str = textwrap.dedent(f"""
             snapshot:
-              threads: {str(self.extractor_threads)}
+              threads: 2
               fetch-size-rows: {self.extr_config.fetch_size_rows}
               _traceDBTasks: true
               split-method: {self.extr_config.split_method}  # Allowed values are RANGE, MODULO
-              extraction-method: {self.extr_config.extraction_method}
+              extraction-method: {self.extract_method}
               locking-row-for-access: {str(self.lock_rows).lower()}
               tpt-max-file-size-gb: {str(self.extr_config.tpt_max_file_size_gb)}
               tpt-num-files-per-job: {str(self.extr_config.tpt_num_files_per_job)}
-              write-nos-auth-schema: {self.extr_config.write_nos_auth_schema}
-              write-nos-number-precision: {str(self.extr_config.write_nos_number_precision)}
-              write-nos-number-scale: {str(self.extr_config.write_nos_number_scale)}
+              {comment_tpt}csv-publish-method: DUCKDB
+              {comment_nos}write-nos-auth-schema: {self.extr_config.write_nos_auth_schema}
+              {comment_nos}write-nos-number-precision: {str(self.extr_config.write_nos_number_precision)}
+              {comment_nos}write-nos-number-scale: {str(self.extr_config.write_nos_number_scale)}
               cast-varchar-type: {str(self.extr_config.cast_varchar_type).lower()}
               native-extract-options:
                 charset: "UTF8"  #Allowed values are ASCII, UTF8

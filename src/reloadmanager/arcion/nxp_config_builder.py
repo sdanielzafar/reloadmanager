@@ -8,12 +8,12 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
     def __init__(self,
                  source_table: str,
                  target_table: str,
+                 method: str,
                  config_dir_path: str = None,
-                 extractor_threads: int = 2,
                  lock_rows: bool = False
                  ):
 
-        super().__init__(source_table, target_table, extractor_threads, lock_rows, config_dir_path)
+        super().__init__(source_table, target_table, method, lock_rows, config_dir_path)
 
         self.load_env_file("/home/arcion/secrets/.env")
         self.oauth_client_id = "7d973a81-6d3a-4e26-99e2-6b10df4bbf41"
