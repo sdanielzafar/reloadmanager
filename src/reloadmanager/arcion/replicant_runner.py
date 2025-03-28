@@ -117,8 +117,8 @@ class ReplicantRunner(LoggingMixin):
                 "--id", self.builder.id,
                 "--truncate-existing"
             ], self.log_file)
-        except Exception:
-            self.logger.warning("Replicant failed")
+        except Exception as e:
+            self.logger.warning(f"Replicant failed: {repr(e)}")
             failure = True
 
         metrics = SnapshotMetrics(start=start, end=time.time(), num_records=self.num_records)
