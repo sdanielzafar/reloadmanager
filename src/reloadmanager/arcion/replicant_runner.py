@@ -66,15 +66,18 @@ class ReplicantRunner(LoggingMixin):
 
         # open the file and go to the end, only keeping 10 lines in memory at a time
         with open(self.log_file, "r") as f:
-            last_5_lines: list[str] = [line.strip() for line in deque(f, 10)]
+            last_10_lines: list[str] = [line.strip() for line in deque(f, 10)]
+
+        if "replicant existed with error code" in last_10_lines[-1]:
+            return 0
 
         row_count_re: re.Pattern = re.compile(r"[^ ]* +([0-9]+) +.*")
         num_records: str = next(
-            (row_count_re.match(s).groups()[0] for s in reversed(last_5_lines) if row_count_re.match(s)),
+            (row_count_re.match(s).groups()[0] for s in reversed(last_10_lines) if row_count_re.match(s)),
             None
         )
         if not num_records:
-            raise Exception(f"Issue parsing log file: {str(last_5_lines)}")
+            raise Exception(f"Issue parsing log file: {str(last_10_lines)}")
 
         return int(num_records)
 

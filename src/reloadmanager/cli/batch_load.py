@@ -3,6 +3,7 @@ import time
 import os
 from dataclasses import dataclass
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from reloadmanager.utils.avoid_window import AvoidWindow
 from reloadmanager.arcion.nxp_config_builder import NxpConfigBuilder
@@ -20,10 +21,12 @@ class ReportRecord:
     num_records: int
     error: str
 
+    @staticmethod
+    def format_mst(t: float) -> str:
+        return datetime.fromtimestamp(t, ZoneInfo("America/Phoenix")).strftime('%-m/%-d/%y %-I:%M %p')
+
     def __str__(self):
-        start_str = datetime.fromtimestamp(self.start).strftime('%-m/%-d/%y %-I:%M %p')
-        end_str = datetime.fromtimestamp(self.end).strftime('%-m/%-d/%y %-I:%M %p')
-        return f"{self.table},{self.status},{start_str},{end_str}," \
+        return f"{self.table},{self.status},{self.format_mst(self.start)},{self.format_mst(self.end)}," \
                f"{self.duration:.2f},{self.num_records},{self.error}\n"
 
 
@@ -48,7 +51,7 @@ def reload_table(source_table: str, target_table: str, run_name: str, threads: i
     except ReplicantRunError as e:
         status = "FAILED"
         logging.info(f"\t{status}")
-        error = repr(e) or ""
+        error = str(e) or ""
     finally:
         end: float = time.time()
 
@@ -75,8 +78,6 @@ def report_writer(file_path):
 
 
 def main(args):
-    avoid_window: AvoidWindow = AvoidWindow(args.avoid_window_utc)
-
     level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(level, int):
         raise ValueError(f"Invalid log level: {args.log_level}")
@@ -86,13 +87,16 @@ def main(args):
         format="%(asctime)s [%(levelname)s] %(message)s"
     )
 
+    avoid_window: AvoidWindow | None = AvoidWindow(args.avoid_window_utc) if "-" in args.avoid_window_utc else None
+
     with open(args.input_csv, "r") as f:
         tables = [line.strip() for line in f]
 
     logging.info(f"Found {len(tables)} tables to load...")
     add_to_report = report_writer(args.output)
     for i, table in enumerate(tables):
-        avoid_window.check()
+        if avoid_window:
+            avoid_window.check()
         logging.info(f"{i + 1}/{len(tables)} {table}...")
 
         reload_summary: ReportRecord = reload_table(

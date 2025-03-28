@@ -17,8 +17,10 @@ class AvoidWindow(LoggingMixin):
         if self.start <= now < self.end:
             if not self.asleep:
                 self.logger.info(f"It is {datetime.now()}, putting job to sleep...zzZZzz")
+                self.asleep = True
             time.sleep(60 * 5)
             self.check()
         else:
             if self.asleep:
                 self.logger.info(f"It is {datetime.now()}, waking up job...*yawn*")
+                self.asleep = False
