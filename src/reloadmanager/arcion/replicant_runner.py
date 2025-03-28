@@ -52,7 +52,7 @@ class ReplicantRunner(LoggingMixin):
                 r"Error running query|HiveSQLException|DeltaAnalysisException|FAILED: Execution Error|"
                 r"Failed to initialize pool"
             )
-            unique_errors: set[str] = set([line for line in f if error_re.search(line)])
+            unique_errors: set[str] = set([line.strip() for line in f if error_re.search(line)])
 
         if unique_errors:
             logging.debug(f"Errors found...{str(unique_errors)}")
