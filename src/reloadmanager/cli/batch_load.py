@@ -100,11 +100,11 @@ def main(args):
         logging.info(f"{i + 1}/{len(tables)} {table}...")
 
         reload_summary: ReportRecord = reload_table(
-            table,
-            "1dp_migration_dev_catalog_3573379518104516." + table,
-            args.run_name,
-            args.threads,
-            args.lock_rows
+            source_table=table,
+            target_table="1dp_migration_dev_catalog_3573379518104516." + table,
+            run_name=args.run_name,
+            method="WriteNOS",
+            lock_rows=args.lock_rows
         )
 
         add_to_report(reload_summary)
