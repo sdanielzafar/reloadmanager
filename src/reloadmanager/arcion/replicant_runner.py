@@ -68,7 +68,8 @@ class ReplicantRunner(LoggingMixin):
         with open(self.log_file, "r") as f:
             last_10_lines: list[str] = [line.strip() for line in deque(f, 10)]
 
-        if "replicant exited with error code" in "|".join(last_10_lines):
+        if "replicant exited with error code: 1" in "|".join(last_10_lines) or \
+                "replicant exited with error code: 2" in "|".join(last_10_lines):
             return 0
 
         row_count_re: re.Pattern = re.compile(r"[^ ]* +([0-9]+) +.*")
@@ -77,6 +78,9 @@ class ReplicantRunner(LoggingMixin):
             None
         )
         if not num_records:
+            if "replicant exited with error code: 0" in "|".join(last_10_lines):
+                self.logger.warning("Strange pattern in log file found, double check to see if anything was imported")
+                return 0
             last_10_fmt: str = "'\n\t'".join(last_10_lines)
             raise Exception(f"Issue parsing log file: \n\t'{last_10_fmt}'")
 
