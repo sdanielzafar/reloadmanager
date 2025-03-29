@@ -77,7 +77,8 @@ class ReplicantRunner(LoggingMixin):
             None
         )
         if not num_records:
-            raise Exception(f"Issue parsing log file: {str(last_10_lines)}")
+            last_10_fmt: str = "'\n\t'".join(last_10_lines)
+            raise Exception(f"Issue parsing log file: \n\t'{last_10_fmt}'")
 
         return int(num_records)
 
