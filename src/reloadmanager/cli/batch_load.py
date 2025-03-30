@@ -7,8 +7,7 @@ from zoneinfo import ZoneInfo
 
 from reloadmanager.utils.avoid_window import AvoidWindow
 from reloadmanager.arcion.nxp_config_builder import NxpConfigBuilder
-from reloadmanager.arcion.replicant_runner import ReplicantRunner, ReplicantRunError
-from reloadmanager.arcion.replicant_runner import SnapshotMetrics
+from reloadmanager.arcion.replicant_runner import ReplicantRunner, ReplicantRunError, SnapshotMetrics
 
 
 @dataclass(frozen=True)
