@@ -173,6 +173,9 @@ class BatchLoader(LoggingMixin):
                         os.path.expanduser(f"~/batch_loads/configs/{self.run_name}")
                     )
                     result: ReportRecord = reloader.reload()
+                    # write to the csv
+                    self.append_output_row(result)
+                    # remove table from queue
                     self.dequeue(source_table)
                     self.logger.info(f"Thread {thread_id} reloaded table '{source_table}' with result: {result}")
                 except Exception as e:
