@@ -1,8 +1,9 @@
 import os
 from dataclasses import dataclass
-import sqlite3
+import pysqlite3
 import time
 from threading import Thread, Event, Lock
+import traceback
 
 from reloadmanager.utils.avoid_window import AvoidWindow
 from reloadmanager.mixins.logging_mixin import LoggingMixin
@@ -51,11 +52,12 @@ class BatchLoader(LoggingMixin):
         self.output: str = output
         self.avoid_window: AvoidWindow | None = AvoidWindow(avoid_window_utc) if "-" in avoid_window_utc else None
         self.lock_rows_default: bool = lock_rows
-        self.logger.set_logger_level(log_level)
+        # self.set_logger_level(log_level)
         self.input: list[InputRecord] = self.read_batch_input()
-        self.db_path = f"home/arcion/batch_loads/sqlite/{self.run_name}.db"
+        self.db_path = f"/home/arcion/batch_loads/sqlite/{self.run_name}.db"
         self.stop_signal: Event = Event()
         self.output_lock: Lock = Lock()
+        self.log_lock: Lock = Lock()
 
     def read_batch_input(self) -> list[InputRecord]:
         with open(self.input_csv_path, "r") as f:
@@ -65,25 +67,30 @@ class BatchLoader(LoggingMixin):
 
     def create_queue(self):
 
-        with sqlite3.connect(self.db_path) as conn:
+        with pysqlite3.connect(self.db_path) as conn:
             conn.execute("""
-            CREATE TABLE IF NOT EXISTS BULK_QUEUE (
-                source_table TEXT PRIMARY KEY,
-                target_table TEXT,
-                strategy TEXT,
-                lock_rows INTEGER CHECK(lock_rows IN (0, 1)),
-                status CHAR(1),
-                priority INTEGER
-            )
-        """)
+                DROP TABLE IF EXISTS BULK_QUEUE
+            """)
+
+        with pysqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE BULK_QUEUE (
+                    source_table TEXT PRIMARY KEY,
+                    target_table TEXT,
+                    strategy TEXT,
+                    lock_rows INTEGER CHECK(lock_rows IN (0, 1)),
+                    status CHAR(1),
+                    priority INTEGER
+                )
+            """)
 
     def enqueue_input(self):
         len_input: int = len(self.input)
         priorities = reversed(range(len_input))
         input_data = (
-            (i.source, i.target, i.strategy, i.lock_rows, p, 'Q') for i, p in zip(self.input, priorities)
+            (i.source, i.target, i.strategy, i.lock_rows, 'Q', p) for i, p in zip(self.input, priorities)
         )
-        with sqlite3.connect(self.db_path) as conn:
+        with pysqlite3.connect(self.db_path) as conn:
             conn.executemany("""
             INSERT INTO BULK_QUEUE (source_table, target_table, strategy, lock_rows, status, priority)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -116,7 +123,7 @@ class BatchLoader(LoggingMixin):
     #     return source_table, target_table, lock_rows
 
     def poll_queue(self, strategy: str):
-        with sqlite3.connect(self.db_path) as conn:
+        with pysqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE BULK_QUEUE
@@ -140,7 +147,7 @@ class BatchLoader(LoggingMixin):
             return ()
 
     def dequeue(self, source_table: str):
-        with sqlite3.connect(self.db_path) as conn:
+        with pysqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
             DELETE FROM BULK_QUEUE
@@ -149,16 +156,28 @@ class BatchLoader(LoggingMixin):
             """, (source_table,))
 
     def queue_is_empty(self) -> bool:
-        with sqlite3.connect(self.db_path, timeout=30) as conn:
+        with pysqlite3.connect(self.db_path, timeout=30) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-            SELECT COUNT(*) FROM BULK_QUEUE 
+            SELECT COUNT(*) FROM BULK_QUEUE WHERE status = 'Q'
             """)
             return cursor.fetchone()[0] == 0
 
+    def safe_log(self, message):
+        with self.log_lock:
+            self.logger.info(message)
+
+    def safe_thread(self, thread_id: int, strategy: str):
+        try:
+            self.worker_thread(thread_id, strategy)
+        except Exception:
+            # Acquire lock *before* printing the traceback to avoid concurrency chaos
+            with self.log_lock:
+                traceback.print_exc()
+
     def worker_thread(self, thread_id: int, strategy: str):
         thread_id = f"{strategy.lower()}_{str(thread_id)}"
-        self.logger.info(f"Thread {thread_id} starting.")
+        self.logger.info(f"Thread {thread_id} starting...")
         while not self.stop_signal.is_set():
             task: tuple = self.poll_queue(strategy)
 
@@ -167,7 +186,7 @@ class BatchLoader(LoggingMixin):
                 try:
                     # reload the table
                     reloader: TableReloader = TableReloader(
-                        source_table, target_table, strategy, lock_rows,
+                        source_table, target_table, strategy, bool(lock_rows),
                         os.path.expanduser(f"~/batch_loads/configs/{self.run_name}")
                     )
                     result: ReportRecord = reloader.reload()
@@ -179,10 +198,11 @@ class BatchLoader(LoggingMixin):
                 except Exception as e:
                     self.logger.warning(f"Thread {thread_id} failed to reload '{source_table}': {e}")
             else:
-                self.logger.info(f"Thread {thread_id} found no tasks. Sleeping...")
-                time.sleep(2)
+                self.logger.info(f"Thread {thread_id} found no tasks. Exiting...")
+                break
 
-        self.logger.info(f"Thread {thread_id} received stop signal. Exiting.")
+        if self.stop_signal.is_set():
+            self.logger.info(f"Thread {thread_id} received stop signal. Exiting.")
 
     def create_output_file(self):
         with open(self.output, 'w') as file:
@@ -196,18 +216,21 @@ class BatchLoader(LoggingMixin):
 
     def run(self):
 
+        self.logger.info(f"Creating and loading SQLite queue for input file {self.input_csv_path}...")
         self.create_queue()
         self.enqueue_input()
 
+        self.logger.info(f"Creating {self.threads['TPT']} TPT threads...")
         tpt_threads: list[Thread] = []
         for i in range(self.threads["TPT"]):
-            thread = Thread(target=self.worker_thread, args=(i, "TPT",))
+            thread = Thread(target=self.safe_thread, args=(i, "TPT",))
             thread.start()
             tpt_threads.append(thread)
 
+        self.logger.info(f"Creating {self.threads['WriteNOS']} WriteNOS threads...")
         writenos_threads: list[Thread] = []
         for i in range(self.threads["WriteNOS"]):
-            thread = Thread(target=self.worker_thread, args=(i, "WriteNOS",))
+            thread = Thread(target=self.safe_thread, args=(i, "WriteNOS",))
             thread.start()
             writenos_threads.append(thread)
 

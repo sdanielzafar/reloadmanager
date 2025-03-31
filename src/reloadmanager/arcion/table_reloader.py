@@ -27,7 +27,7 @@ class ReportRecord:
 
     def __str__(self):
         return f"{self.table},{self.status},{self.format_mst(self.start)},{self.format_mst(self.end)}," \
-               f"{self.duration:.2f},{self.num_records},{self.error}\n"
+               f"{self.duration:.2f},{self.num_records},{self.error.strip()}\n"
 
 
 class TableReloader(LoggingMixin):
@@ -77,5 +77,7 @@ class TableReloader(LoggingMixin):
 
         if status == "FAILED" or replicant.error:
             self.handle_error(replicant.error, num_records, report_record.duration, replicant.error_log_path)
+
+        self.logger.info(f"SUCCESS: duration {report_record.duration:.2f} minutes")
 
         return report_record

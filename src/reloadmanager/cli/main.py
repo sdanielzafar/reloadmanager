@@ -27,7 +27,6 @@ def main():
     batch_load_parser = subparsers.add_parser("batch-load", help="Reload multiple tables")
     batch_load_parser.add_argument("--input-csv", required=True, help="The input csv file")
     batch_load_parser.add_argument("--output", required=True, help="The output location")
-    batch_load_parser.add_argument("--run-name", required=True, help="A name for the run")
     batch_load_parser.add_argument("--avoid-window-utc", required=False, default="6-18", help="6-18 or None")
     batch_load_parser.add_argument("--tpt-threads", required=False, help="# TPT threads (default: 8)", default=8)
     batch_load_parser.add_argument("--writenos-threads", required=False, help="# WriteNOS threads (default: 2)", default=2)
