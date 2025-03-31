@@ -14,6 +14,7 @@ class LoggingMixin:
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
+        logger.propagate = False
         return logger
 
     def set_logger_level(self, log_level):

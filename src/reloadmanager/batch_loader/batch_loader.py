@@ -43,8 +43,7 @@ class BatchLoader(LoggingMixin):
                  tpt_threads: int = 8,
                  writenos_threads: int = 2,
                  avoid_window_utc: str = "6-18",
-                 lock_rows: bool = True,
-                 log_level: str = "INFO"):
+                 lock_rows: bool = True):
 
         self.input_csv_path = input_csv
         self.threads: dict = {"TPT": tpt_threads, "WriteNOS": writenos_threads}
@@ -52,7 +51,6 @@ class BatchLoader(LoggingMixin):
         self.output: str = output
         self.avoid_window: AvoidWindow | None = AvoidWindow(avoid_window_utc) if "-" in avoid_window_utc else None
         self.lock_rows_default: bool = lock_rows
-        # self.set_logger_level(log_level)
         self.input: list[InputRecord] = self.read_batch_input()
         self.db_path = f"/home/arcion/batch_loads/sqlite/{self.run_name}.db"
         self.stop_signal: Event = Event()
@@ -145,7 +143,6 @@ class BatchLoader(LoggingMixin):
         try:
             self.worker_thread(thread_id, strategy)
         except Exception:
-            # Acquire lock *before* printing the traceback to avoid concurrency chaos
             with self.log_lock:
                 traceback.print_exc()
 
@@ -158,6 +155,7 @@ class BatchLoader(LoggingMixin):
             if task:
                 source_table, target_table, lock_rows = task
                 try:
+                    self.logger.info(f"Thread {thread_id} picked up {source_table}...")
                     # reload the table
                     reloader: TableReloader = TableReloader(
                         source_table, target_table, strategy, bool(lock_rows),
@@ -166,11 +164,12 @@ class BatchLoader(LoggingMixin):
                     result: ReportRecord = reloader.reload()
                     # write to the csv
                     self.append_output_row(result)
-                    # remove table from queue
-                    self.dequeue(source_table)
-                    self.logger.info(f"Thread {thread_id} reloaded table '{source_table}' with result: {result}")
+                    self.logger.info(f"Thread {thread_id} reloaded table '{source_table}'")
                 except Exception as e:
                     self.logger.warning(f"Thread {thread_id} failed to reload '{source_table}': {e}")
+                finally:
+                    # remove table from queue
+                    self.dequeue(source_table)
             else:
                 self.logger.info(f"Thread {thread_id} found no tasks. Exiting...")
                 break

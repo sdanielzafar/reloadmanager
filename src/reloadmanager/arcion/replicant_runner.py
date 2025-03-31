@@ -1,8 +1,8 @@
 import logging
 import os.path
-import time
 from datetime import datetime
 from dataclasses import dataclass
+from subprocess import CalledProcessError
 
 # for error handler
 import re
@@ -53,7 +53,7 @@ class ReplicantRunner(LoggingMixin):
         with open(self.error_log_path, "r") as f:
             error_re: re.Pattern = re.compile(
                 r"Error running query|HiveSQLException|DeltaAnalysisException|FAILED: Execution Error|"
-                r"Failed to initialize pool"
+                r"Failed to initialize pool|ExtractorException"
             )
             unique_errors: set[str] = set([line.strip() for line in f if error_re.search(line)])
 
@@ -84,8 +84,8 @@ class ReplicantRunner(LoggingMixin):
             if "replicant exited with error code: 0" in "|".join(last_10_lines):
                 self.logger.warning("Strange pattern in log file found, double check to see if anything was imported")
                 return 0
-            last_10_fmt: str = "'\n\t'".join(last_10_lines)
-            raise Exception(f"Issue parsing log file: \n\t'{last_10_fmt}'")
+            last_10_fmt: str = "\n".join(last_10_lines)
+            raise Exception(f"Issue parsing log file: \n'{last_10_fmt}'")
 
         return int(num_records)
 
@@ -117,9 +117,9 @@ class ReplicantRunner(LoggingMixin):
                 "--id", self.builder.id,
                 "--truncate-existing"
             ], self.log_file)
-        except Exception as e:
+        except CalledProcessError as e:
             status = "FAILED"
-            self.logger.warning(f"Replicant failed: {repr(e)}")
+            self.logger.warning(f"Replicant failed: {str(e)}")
 
         if status == "FAILED" or self.error:
             self._handle_failure(self.error, self.num_records)
