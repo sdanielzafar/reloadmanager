@@ -1,5 +1,4 @@
-from reloadmanager.arcion.nxp_config_builder import NxpConfigBuilder
-from reloadmanager.arcion.replicant_runner import ReplicantRunner
+from reloadmanager.arcion.table_reloader import TableReloader
 import logging
 
 
@@ -9,7 +8,7 @@ def main(args):
         format="%(asctime)s [%(levelname)s] %(message)s"
     )
 
-    builder: NxpConfigBuilder = NxpConfigBuilder(
+    reloader: TableReloader = TableReloader(
         source_table=args.source_table,
         target_table=args.target_table,
         method=args.method,
@@ -17,9 +16,4 @@ def main(args):
         config_dir_path=args.config_dir_path
     )
 
-    reloader: ReplicantRunner = ReplicantRunner(
-        builder=builder,
-        replicant_path=args.replicant_path
-    )
-
-    reloader.run_snapshot()
+    reloader.reload()

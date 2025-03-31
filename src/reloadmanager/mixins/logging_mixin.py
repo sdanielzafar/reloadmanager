@@ -15,3 +15,10 @@ class LoggingMixin:
             logger.addHandler(handler)
 
         return logger
+
+    def set_logger_level(self, log_level):
+        level = getattr(logging, log_level.upper(), None)
+        if not isinstance(level, int):
+            raise ValueError(f"Invalid log level: {log_level}")
+
+        self.logger.setLevel(level)

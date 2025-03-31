@@ -38,7 +38,10 @@ class ReplicantRunner(LoggingMixin):
         self.replicant_path: str = replicant_path or "/arcion/replicant-cli/bin/replicant"
         self.builder: ReplicantConfigBuilder = builder
         self.error_log_path: str = f"/arcion/replicant-cli/data/{self.builder.id.lower()}/error_trace.log"
-        self.log_file: str = ""
+
+    @cached_property
+    def log_file(self):
+        return f"{self.builder.config_dir_path}/{self.builder.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
     @cached_property
     def error(self) -> str:
@@ -86,30 +89,13 @@ class ReplicantRunner(LoggingMixin):
 
         return int(num_records)
 
-    def handle_failure(self, failure: bool, elapsed_minutes):
-        if failure | bool(self.error):
-            if self.error:
-                if self.num_records:
-                    self.logger.info(f"Failure: duration {elapsed_minutes:.2f} minutes")
-                    raise ReplicantRunError(self.error)
-                else:
-                    self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS.")
-            else:
-                self.logger.info(f"Failure: duration {elapsed_minutes:.2f} minutes")
-                raise ReplicantRunError(f"Unknown error, check logs at: {self.error_log_path}")
-
-    def run_snapshot(self) -> SnapshotMetrics:
+    def run_snapshot(self):
 
         self.builder.write_config_files()
-        self.logger.info(f"\tWriting yaml to dir: {self.builder.config_dir_path}...")
 
-        self.log_file = \
-            f"{self.builder.config_dir_path}/{self.builder.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        self.logger.info(f"\tWriting yaml to dir: {self.builder.config_dir_path}...")
         self.logger.info(f"\tLogging to: {self.log_file}...")
 
-        start: float = time.time()
-
-        failure: bool = False
         try:
             run_cli_cmd([
                 self.replicant_path, "snapshot",
@@ -123,12 +109,7 @@ class ReplicantRunner(LoggingMixin):
                 "--truncate-existing"
             ], self.log_file)
         except Exception as e:
-            self.logger.warning(f"Replicant failed: {repr(e)}")
-            failure = True
+            raise ReplicantRunError(f"Replicant failed: {repr(e)}")
 
-        metrics = SnapshotMetrics(start=start, end=time.time(), num_records=self.num_records)
-
-        self.handle_failure(failure, metrics.duration)
-        self.logger.info(f"Success: duration {metrics.duration:.2f} minutes")
-
-        return metrics
+        # self._handle_failure(failure, metrics.duration)
+        # self.logger.info(f"Success: duration {metrics.duration:.2f} minutes")
