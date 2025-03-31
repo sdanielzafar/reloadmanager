@@ -139,8 +139,6 @@ class BatchLoader(LoggingMixin):
         else:
             return ()
 
-    # No row found for this strategy.
-
     def dequeue(self, source_table: str):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
