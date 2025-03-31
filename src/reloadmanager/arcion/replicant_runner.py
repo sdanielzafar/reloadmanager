@@ -89,6 +89,14 @@ class ReplicantRunner(LoggingMixin):
 
         return int(num_records)
 
+    def _handle_failure(self, replicant_error: str, num_records: int):
+        if replicant_error and num_records:
+            raise ReplicantRunError(replicant_error)
+        elif replicant_error:
+            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS.")
+        else:
+            raise ReplicantRunError(f"Unknown error, check logs at: {self.error_log_path}")
+
     def run_snapshot(self):
 
         self.builder.write_config_files()
@@ -96,6 +104,7 @@ class ReplicantRunner(LoggingMixin):
         self.logger.info(f"\tWriting yaml to dir: {self.builder.config_dir_path}...")
         self.logger.info(f"\tLogging to: {self.log_file}...")
 
+        status: str = "SUCCESS"
         try:
             run_cli_cmd([
                 self.replicant_path, "snapshot",
@@ -109,7 +118,8 @@ class ReplicantRunner(LoggingMixin):
                 "--truncate-existing"
             ], self.log_file)
         except Exception as e:
-            raise ReplicantRunError(f"Replicant failed: {repr(e)}")
+            status = "FAILED"
+            self.logger.warning(f"Replicant failed: {repr(e)}")
 
-        # self._handle_failure(failure, metrics.duration)
-        # self.logger.info(f"Success: duration {metrics.duration:.2f} minutes")
+        if status == "FAILED" or self.error:
+            self._handle_failure(self.error, self.num_records)

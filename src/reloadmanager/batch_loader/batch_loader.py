@@ -96,32 +96,6 @@ class BatchLoader(LoggingMixin):
             VALUES (?, ?, ?, ?, ?, ?)
             """, input_data)
 
-    # def poll_queue(self, strategy: str) -> tuple:
-    #     with sqlite3.connect(self.db_path) as conn:
-    #         cursor = conn.cursor()
-    #         cursor.execute("""
-    #         SELECT source_table, target_table, lock_rows FROM BULK_QUEUE
-    #         WHERE status = 'Q'
-    #         AND strategy = ?
-    #         ORDER BY priority DESC LIMIT 1
-    #         """, (strategy,))
-    #         row = cursor.fetchone()
-    #
-    #     if not row:
-    #         return ()
-    #
-    #     source_table, target_table, lock_rows = row
-    #
-    #     with sqlite3.connect(self.db_path) as conn:
-    #         cursor = conn.cursor()
-    #         cursor.execute("""
-    #         UPDATE BULK_QUEUE
-    #         SET status = 'R'
-    #         WHERE source_table = ?
-    #         """, (source_table,))
-    #
-    #     return source_table, target_table, lock_rows
-
     def poll_queue(self, strategy: str):
         with pysqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()

@@ -74,10 +74,5 @@ class TableReloader(LoggingMixin):
             end: float = time.time()
 
         report_record = ReportRecord(self.source_table, status, start, end, num_records, error)
-
-        if status == "FAILED" or replicant.error:
-            self.handle_error(replicant.error, num_records, report_record.duration, replicant.error_log_path)
-
-        self.logger.info(f"SUCCESS: duration {report_record.duration:.2f} minutes")
-
+        self.logger.info(f"{status}: duration {report_record.duration:.2f} minutes")
         return report_record
