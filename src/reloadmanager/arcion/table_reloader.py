@@ -44,7 +44,11 @@ class TableReloader(LoggingMixin):
             self.logger.info(f"Failure: duration {duration:.2f} minutes")
             raise ReplicantRunError(replicant_error)
         elif replicant_error:
-            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS.")
+            if "Syntax error" in replicant_error:
+                self.logger.info(f"Failure: duration {duration:.2f} minutes")
+                raise ReplicantRunError(replicant_error)
+            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS."
+                                f"Error was: {str(replicant_error)}")
         else:
             self.logger.info(f"Failure: duration {duration:.2f} minutes")
             raise ReplicantRunError(f"Unknown error, check logs at: {replicant_error_log_path}")
