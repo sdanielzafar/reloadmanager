@@ -53,12 +53,15 @@ class ReplicantRunner(LoggingMixin):
         with open(self.error_log_path, "r") as f:
             error_re: re.Pattern = re.compile(
                 r"Error running query|HiveSQLException|DeltaAnalysisException|FAILED: Execution Error|"
-                r"Failed to initialize pool|ExtractorException"
+                r"Failed to initialize pool|ExtractorException|Syntax error"
             )
             unique_errors: set[str] = set([line.strip() for line in f if error_re.search(line)])
 
         if unique_errors:
             logging.debug(f"Errors found...{str(unique_errors)}")
+            syntax_errors: list[str] = [line for line in unique_errors if "Syntax error" in line]
+            if syntax_errors:
+                return syntax_errors.pop()
             return unique_errors.pop()
         return ""
 
@@ -95,7 +98,7 @@ class ReplicantRunner(LoggingMixin):
         elif replicant_error:
             if "Syntax error" in replicant_error:
                 raise ReplicantRunError(replicant_error)
-            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS."
+            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS. "
                                 f"Error was: {str(replicant_error)}")
         else:
             raise ReplicantRunError(f"Unknown error, check logs at: {self.error_log_path}")
