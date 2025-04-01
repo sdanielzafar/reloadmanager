@@ -1,39 +1,13 @@
 import os
-from dataclasses import dataclass
-import pysqlite3
 import time
 from threading import Thread, Event, Lock
 import traceback
 
+from reloadmanager.batch_loader.batch_queue import BatchQueue
+from reloadmanager.batch_loader.models import InputRecord
 from reloadmanager.utils.avoid_window import AvoidWindow
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.arcion.table_reloader import TableReloader, ReportRecord
-
-
-@dataclass(frozen=True)
-class InputRecord:
-    source: str
-    target: str
-    strategy: str
-    lock_rows: bool
-
-    @classmethod
-    def from_csv(cls, line: str, lock_row_default: bool):
-        def valid_table(s: str, n: int):
-            if len(s.split(".")) != n:
-                raise ValueError(f"Table '{s}' must have {n} namespaces in the input config file")
-            return s
-
-        source, target, method, *lock_rows_str = line.split(",")
-        if method not in ["TPT", "WriteNOS"]:
-            raise ValueError(f"Input line: {line} has invalid method. Should be 'TPT' or 'WriteNOS'")
-
-        lock_rows = lock_row_default
-        if lock_rows_str:
-            if lock_rows_str[0].strip().lower() not in ["true", "false"]:
-                raise ValueError(f"Input line: {line} has invalid lock rows. Should be 'true' or 'false'")
-            lock_rows = lock_rows_str[0].strip().lower() == "true"
-        return cls(valid_table(source, 2), valid_table(target, 3), method, lock_rows)
 
 
 class BatchLoader(LoggingMixin):
@@ -52,7 +26,7 @@ class BatchLoader(LoggingMixin):
         self.avoid_window: AvoidWindow | None = AvoidWindow(avoid_window_utc) if "-" in avoid_window_utc else None
         self.lock_rows_default: bool = lock_rows
         self.input: list[InputRecord] = self.read_batch_input()
-        self.db_path = f"/home/arcion/batch_loads/sqlite/{self.run_name}.db"
+        self.queue = BatchQueue(f"/home/arcion/batch_loads/sqlite/{self.run_name}.db")
         self.stop_signal: Event = Event()
         self.output_lock: Lock = Lock()
         self.log_lock: Lock = Lock()
@@ -62,82 +36,6 @@ class BatchLoader(LoggingMixin):
             tables = [InputRecord.from_csv(line.strip(), self.lock_rows_default) for line in f]
         self.logger.info(f"Found {len(tables)} tables to load...")
         return tables
-
-    def create_queue(self):
-
-        with pysqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                DROP TABLE IF EXISTS BULK_QUEUE
-            """)
-
-        with pysqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE BULK_QUEUE (
-                    source_table TEXT PRIMARY KEY,
-                    target_table TEXT,
-                    strategy TEXT,
-                    lock_rows INTEGER CHECK(lock_rows IN (0, 1)),
-                    status CHAR(1),
-                    priority INTEGER
-                )
-            """)
-
-    def enqueue_input(self):
-        len_input: int = len(self.input)
-        priorities = reversed(range(len_input))
-        input_data = (
-            (i.source, i.target, i.strategy, i.lock_rows, 'Q', p) for i, p in zip(self.input, priorities)
-        )
-        with pysqlite3.connect(self.db_path) as conn:
-            conn.executemany("""
-            INSERT INTO BULK_QUEUE (source_table, target_table, strategy, lock_rows, status, priority)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """, input_data)
-
-    def poll_queue(self, strategy: str):
-        with pysqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE BULK_QUEUE
-                SET status = 'R'
-                WHERE rowid IN (
-                    SELECT rowid
-                    FROM BULK_QUEUE
-                    WHERE status = 'Q'
-                      AND strategy = ?
-                    ORDER BY priority DESC
-                    LIMIT 1
-                )
-                RETURNING source_table, target_table, lock_rows
-            """, (strategy,))
-            row = cursor.fetchone()
-
-        if row:
-            source_table, target_table, lock_rows = row
-            return source_table, target_table, lock_rows
-        else:
-            return ()
-
-    def dequeue(self, source_table: str):
-        with pysqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-            DELETE FROM BULK_QUEUE
-            WHERE source_table = ?
-            AND status = 'R'
-            """, (source_table,))
-
-    def queue_is_empty(self) -> bool:
-        with pysqlite3.connect(self.db_path, timeout=30) as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-            SELECT COUNT(*) FROM BULK_QUEUE WHERE status = 'Q'
-            """)
-            return cursor.fetchone()[0] == 0
-
-    def safe_log(self, message):
-        with self.log_lock:
-            self.logger.info(message)
 
     def safe_thread(self, thread_id: int, strategy: str):
         try:
@@ -150,7 +48,7 @@ class BatchLoader(LoggingMixin):
         thread_id = f"{strategy.lower()}_{str(thread_id)}"
         self.logger.info(f"Thread {thread_id} starting...")
         while not self.stop_signal.is_set():
-            task: tuple = self.poll_queue(strategy)
+            task: tuple = self.queue.poll_queue(strategy)
 
             if task:
                 source_table, target_table, lock_rows = task
@@ -169,7 +67,7 @@ class BatchLoader(LoggingMixin):
                     self.logger.warning(f"Thread {thread_id} failed to reload '{source_table}': {e}")
                 finally:
                     # remove table from queue
-                    self.dequeue(source_table)
+                    self.queue.dequeue(source_table)
             else:
                 self.logger.info(f"Thread {thread_id} found no tasks. Exiting...")
                 break
@@ -180,7 +78,7 @@ class BatchLoader(LoggingMixin):
     def create_output_file(self):
         with open(self.output, 'w') as file:
             self.logger.info(f"Creating report and placing at {self.output}...")
-            file.write("TABLE,STATUS,START,END,DURATION_MINS,NUM_RECORDS,ERROR\n")
+            file.write("TABLE,STRATEGY,STATUS,START,END,DURATION_MINS,NUM_RECORDS,ERROR\n")
 
     def append_output_row(self, record: ReportRecord):
         with self.output_lock:
@@ -190,8 +88,8 @@ class BatchLoader(LoggingMixin):
     def run(self):
 
         self.logger.info(f"Creating and loading SQLite queue for input file {self.input_csv_path}...")
-        self.create_queue()
-        self.enqueue_input()
+        self.queue.create_queue()
+        self.queue.enqueue_input(self.input)
 
         self.logger.info(f"Creating {self.threads['TPT']} TPT threads...")
         tpt_threads: list[Thread] = []
@@ -207,13 +105,18 @@ class BatchLoader(LoggingMixin):
             thread.start()
             writenos_threads.append(thread)
 
+        self.create_output_file()
+        time.sleep(5)
         try:
             while True:
-                if self.queue_is_empty():
-                    self.logger.info("All tasks completed. Sending stop signal...")
+                num_queued: int = len(self.queue)
+                if num_queued == 0:
+                    self.logger.info("All tasks picked up or completed. Sending stop signal...")
                     self.stop_signal.set()
                     break
-                time.sleep(15)
+                else:
+                    self.logger.info(f"PROGRESS: {(len(self.input)-num_queued)}/{len(self.input)} tables picked up")
+                time.sleep(30)
         except KeyboardInterrupt:
             self.logger.info("Interrupt received. Sending stop signal for active threads...")
             self.stop_signal.set()

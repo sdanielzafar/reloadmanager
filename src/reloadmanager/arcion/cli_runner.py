@@ -3,9 +3,7 @@ import subprocess
 
 def run_cli_cmd(command: list[str], log_file: str) -> str:
     try:
-        result = subprocess.run(
-            command, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL
-        )
+        result = subprocess.run(command, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         with open(log_file, 'w') as f:
             f.write(result.stdout)
         return result.stdout.strip()

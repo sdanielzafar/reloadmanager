@@ -11,6 +11,7 @@ from reloadmanager.mixins.logging_mixin import LoggingMixin
 @dataclass(frozen=True)
 class ReportRecord:
     table: str
+    strategy: str
     status: str
     start: float
     end: float
@@ -26,7 +27,7 @@ class ReportRecord:
         return datetime.fromtimestamp(t, ZoneInfo("America/Phoenix")).strftime('%-m/%-d/%y %-I:%M %p')
 
     def __str__(self):
-        return f"{self.table},{self.status},{self.format_mst(self.start)},{self.format_mst(self.end)}," \
+        return f"{self.table},{self.strategy},{self.status},{self.format_mst(self.start)},{self.format_mst(self.end)}," \
                f"{self.duration:.2f},{self.num_records},{self.error.strip()}\n"
 
 
@@ -73,6 +74,6 @@ class TableReloader(LoggingMixin):
         finally:
             end: float = time.time()
 
-        report_record = ReportRecord(self.source_table, status, start, end, num_records, error)
+        report_record = ReportRecord(self.source_table, self.method, status, start, end, num_records, error)
         self.logger.info(f"{status}: duration {report_record.duration:.2f} minutes")
         return report_record

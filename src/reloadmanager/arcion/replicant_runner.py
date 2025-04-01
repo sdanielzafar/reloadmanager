@@ -119,7 +119,7 @@ class ReplicantRunner(LoggingMixin):
             ], self.log_file)
         except CalledProcessError as e:
             status = "FAILED"
-            self.logger.warning(f"Replicant failed: {str(e)}")
+            self.logger.warning(f"Replicant failed: {str(e.cmd)} failed with return code {str(e.returncode)}")
 
         if status == "FAILED" or self.error:
             self._handle_failure(self.error, self.num_records)
