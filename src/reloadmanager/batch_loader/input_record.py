@@ -9,13 +9,17 @@ class InputRecord:
     lock_rows: bool
 
     @classmethod
-    def from_csv(cls, line: str, lock_row_default: bool):
-        def valid_table(s: str, n: int):
-            if len(s.split(".")) != n:
-                raise ValueError(f"Table '{s}' must have {n} namespaces in the input config file")
+    def from_csv(cls, line: str, catalog: str, lock_row_default: bool):
+        def valid_table(s: str):
+            if len(s.split(".")) != 2:
+                raise ValueError(f"Table '{s}' must have 2 namespaces in the input config file")
             return s
 
         source, target, method, *lock_rows_str = line.split(",")
+
+        # setting the target is optional, if it's blank it will take the source and pop the catalog on it
+        target = f"{catalog}.{valid_table(target if target else source)}"
+
         if method not in ["TPT", "WriteNOS"]:
             raise ValueError(f"Input line: {line} has invalid method. Should be 'TPT' or 'WriteNOS'")
 
@@ -24,4 +28,4 @@ class InputRecord:
             if lock_rows_str[0].strip().lower() not in ["true", "false"]:
                 raise ValueError(f"Input line: {line} has invalid lock rows. Should be 'true' or 'false'")
             lock_rows = lock_rows_str[0].strip().lower() == "true"
-        return cls(valid_table(source, 2), valid_table(target, 3), method, lock_rows)
+        return cls(valid_table(source), target, method, lock_rows)

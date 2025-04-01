@@ -4,7 +4,7 @@ from threading import Thread, Event, Lock
 import traceback
 
 from reloadmanager.batch_loader.batch_queue import BatchQueue
-from reloadmanager.batch_loader.models import InputRecord
+from reloadmanager.batch_loader.input_record import InputRecord
 from reloadmanager.utils.avoid_window import AvoidWindow
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.arcion.table_reloader import TableReloader, ReportRecord
@@ -14,15 +14,17 @@ class BatchLoader(LoggingMixin):
     def __init__(self,
                  input_csv: str,
                  output: str,
+                 catalog: str,
                  tpt_threads: int = 8,
                  writenos_threads: int = 2,
                  avoid_window_utc: str = "6-18",
                  lock_rows: bool = True):
 
         self.input_csv_path = input_csv
+        self.output: str = output
+        self.catalog: str = catalog
         self.threads: dict = {"TPT": tpt_threads, "WriteNOS": writenos_threads}
         self.run_name: str = os.path.basename(input_csv).rsplit(".", 1)[0]
-        self.output: str = output
         self.avoid_window: AvoidWindow | None = AvoidWindow(avoid_window_utc) if "-" in avoid_window_utc else None
         self.lock_rows_default: bool = lock_rows
         self.input: list[InputRecord] = self.read_batch_input()
@@ -33,7 +35,11 @@ class BatchLoader(LoggingMixin):
 
     def read_batch_input(self) -> list[InputRecord]:
         with open(self.input_csv_path, "r") as f:
-            tables = [InputRecord.from_csv(line.strip(), self.lock_rows_default) for line in f]
+            tables = [InputRecord.from_csv(
+                line=line.strip(),
+                catalog=self.catalog,
+                lock_row_default=self.lock_rows_default
+            ) for line in f]
         self.logger.info(f"Found {len(tables)} tables to load...")
         return tables
 

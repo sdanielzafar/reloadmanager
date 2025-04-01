@@ -1,6 +1,6 @@
 import pysqlite3
 
-from reloadmanager.batch_loader.models import InputRecord
+from reloadmanager.batch_loader.input_record import InputRecord
 
 
 class BatchQueue:

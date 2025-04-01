@@ -14,6 +14,7 @@ def main(args):
     bl = BatchLoader(
         input_csv=args.input_csv,
         output=args.output,
+        catalog=args.catalog,
         tpt_threads=int(args.tpt_threads),
         writenos_threads=int(args.writenos_threads),
         avoid_window_utc=args.avoid_window_utc,
