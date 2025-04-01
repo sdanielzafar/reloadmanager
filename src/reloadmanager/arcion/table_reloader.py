@@ -39,20 +39,6 @@ class TableReloader(LoggingMixin):
         self.lock_rows: bool = lock_rows
         self.config_dir_path: str = config_dir_path
 
-    def handle_error(self, replicant_error: str, num_records: int, duration: float, replicant_error_log_path: str):
-        if replicant_error and num_records:
-            self.logger.info(f"Failure: duration {duration:.2f} minutes")
-            raise ReplicantRunError(replicant_error)
-        elif replicant_error:
-            if "Syntax error" in replicant_error:
-                self.logger.info(f"Failure: duration {duration:.2f} minutes")
-                raise ReplicantRunError(replicant_error)
-            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS."
-                                f"Error was: {str(replicant_error)}")
-        else:
-            self.logger.info(f"Failure: duration {duration:.2f} minutes")
-            raise ReplicantRunError(f"Unknown error, check logs at: {replicant_error_log_path}")
-
     def reload(self) -> ReportRecord:
         builder: NxpConfigBuilder = NxpConfigBuilder(
             source_table=self.source_table,

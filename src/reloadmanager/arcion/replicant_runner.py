@@ -93,7 +93,10 @@ class ReplicantRunner(LoggingMixin):
         if replicant_error and num_records:
             raise ReplicantRunError(replicant_error)
         elif replicant_error:
-            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS.")
+            if "Syntax error" in replicant_error:
+                raise ReplicantRunError(replicant_error)
+            self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS."
+                                f"Error was: {str(replicant_error)}")
         else:
             raise ReplicantRunError(f"Unknown error, check logs at: {self.error_log_path}")
 
