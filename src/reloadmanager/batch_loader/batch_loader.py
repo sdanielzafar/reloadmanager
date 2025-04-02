@@ -70,7 +70,7 @@ class BatchLoader(LoggingMixin):
                     self.append_output_row(result)
                     self.logger.info(f"Thread {thread_id} reloaded table '{source_table}'")
                 except Exception as e:
-                    self.logger.warning(f"Thread {thread_id} failed to reload '{source_table}': {e}")
+                    self.logger.error(f"Thread {thread_id} failed to reload '{source_table}': {e}")
                 finally:
                     # remove table from queue
                     self.queue.dequeue(source_table)
