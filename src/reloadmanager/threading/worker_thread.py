@@ -1,15 +1,15 @@
 import os
 from abc import ABC, abstractmethod
-from threading import Thread
+from threading import Thread, Event
 import traceback
 
 from reloadmanager.arcion.table_reloader import TableReloader, ReportRecord
 from reloadmanager.mixins.logging_mixin import LoggingMixin
-from reloadmanager.threading.synchronization import LogLock, StopSignal
+from reloadmanager.threading.synchronization import LogLock
 
 
 class WorkerThread(Thread, ABC, LoggingMixin):
-    def __init__(self, thread_id: int, strategy: str, run_name: str, stop_signal: StopSignal):
+    def __init__(self, thread_id: int, strategy: str, run_name: str, stop_signal: Event):
         super().__init__()
         self.strategy: str = strategy
         self.thread_id: str = f"{strategy.lower()}_{str(thread_id)}"

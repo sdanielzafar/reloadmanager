@@ -1,13 +1,12 @@
-from threading import Lock
+from threading import Lock, Event
 
 from reloadmanager.arcion.table_reloader import ReportRecord
 from reloadmanager.batch_loader.batch_queue import BatchQueue
-from reloadmanager.threading.synchronization import StopSignal
 from reloadmanager.threading.worker_thread import WorkerThread
 
 
 class BulkLoaderThread(WorkerThread):
-    def __init__(self, thread_id: int, strategy: str, run_name: str, output_path: str, stop_signal: StopSignal):
+    def __init__(self, thread_id: int, strategy: str, run_name: str, output_path: str, stop_signal: Event):
         super().__init__(thread_id, strategy, run_name, stop_signal)
         self.output_path: str = output_path
         self.queue: BatchQueue = BatchQueue(f"/home/arcion/batch_loads/sqlite/{run_name}.db")
