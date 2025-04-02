@@ -43,7 +43,6 @@ class TargetConfig:
 class ExtractorConfig:
     fetch_size_rows: str
     split_method: str
-    extraction_method: str
     tpt_max_file_size_gb: int | str
     tpt_num_files_per_job: int | str
     write_nos_auth_schema: str

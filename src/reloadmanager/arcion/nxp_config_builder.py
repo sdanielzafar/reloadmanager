@@ -8,13 +8,14 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
     def __init__(self,
                  source_table: str,
                  target_table: str,
-                 method: str,
+                 strategy: str,
                  config_dir_path: str = None,
                  lock_rows: bool = False
                  ):
 
-        super().__init__(source_table, target_table, method, lock_rows, config_dir_path)
+        super().__init__(source_table, target_table, strategy, lock_rows, config_dir_path)
 
+        self.strategy: str = strategy
         self.load_env_file("/home/arcion/secrets/.env")
         self.oauth_client_id = "7d973a81-6d3a-4e26-99e2-6b10df4bbf41"
         self.databricks_pat = self.get_secret("DATABRICKS_PAT")
@@ -65,7 +66,6 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
         return ExtractorConfig(
             fetch_size_rows="10_000",
             split_method="RANGE",
-            extraction_method="TERADATA_WRITE_NOS",
             tpt_max_file_size_gb="5",
             tpt_num_files_per_job="16",
             write_nos_auth_schema="EDW_DB_SYNC_USER",
@@ -79,7 +79,7 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
             source="/arcion/configs/teradata_src.yaml",
             target=None,
             extractor=None,
-            applier="/arcion/configs/databricks_applier.yaml",
+            applier=f"/arcion/configs/databricks_applier{'_no_optimize' if self.strategy == 'TPT' else ''}.yaml",
             filter=None,
             map=None,
         )
