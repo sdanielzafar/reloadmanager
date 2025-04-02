@@ -32,10 +32,10 @@ class ReportRecord:
 
 
 class TableReloader(LoggingMixin):
-    def __init__(self, source_table: str, target_table: str, method: str, lock_rows: bool, config_dir_path: str):
+    def __init__(self, source_table: str, target_table: str, strategy: str, lock_rows: bool, config_dir_path: str):
         self.source_table: str = source_table
         self.target_table: str = target_table
-        self.method: str = method
+        self.strategy: str = strategy
         self.lock_rows: bool = lock_rows
         self.config_dir_path: str = config_dir_path
 
@@ -43,7 +43,7 @@ class TableReloader(LoggingMixin):
         builder: NxpConfigBuilder = NxpConfigBuilder(
             source_table=self.source_table,
             target_table=self.target_table,
-            method=self.method,
+            strategy=self.strategy,
             lock_rows=self.lock_rows,
             config_dir_path=self.config_dir_path
         )
@@ -64,6 +64,6 @@ class TableReloader(LoggingMixin):
         finally:
             end: float = time.time()
 
-        report_record = ReportRecord(self.source_table, self.method, status, start, end, num_records, error)
+        report_record = ReportRecord(self.source_table, self.strategy, status, start, end, num_records, error)
         self.logger.info(f"{status}: duration {report_record.duration:.2f} minutes")
         return report_record

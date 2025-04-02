@@ -12,7 +12,7 @@ def main():
     reload_parser = subparsers.add_parser("reload-table", help="Reload a single table")
     reload_parser.add_argument("--source-table", required=True, help="Teradata: schema.table")
     reload_parser.add_argument("--target-table", required=True, help="Databricks: catalog.schema.table")
-    reload_parser.add_argument("--method", required=False, help="'WriteNOS' or 'TPT", default="WriteNOS")
+    reload_parser.add_argument("--strategy", required=False, help="'WriteNOS' or 'TPT", default="WriteNOS")
     reload_parser.add_argument("--replicant-path", required=False, help="Path to Arcion Replicant")
     reload_parser.add_argument("--config-dir-path", required=False, help="Optional path to put config files")
     reload_parser.add_argument("--lock-rows", required=False, help="Whether to enable row locking", default=True)

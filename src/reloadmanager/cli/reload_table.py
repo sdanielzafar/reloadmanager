@@ -11,7 +11,7 @@ def main(args):
     reloader: TableReloader = TableReloader(
         source_table=args.source_table,
         target_table=args.target_table,
-        method=args.method,
+        strategy=args.strategy,
         lock_rows=args.lock_rows,
         config_dir_path=args.config_dir_path
     )
