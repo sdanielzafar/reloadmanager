@@ -27,7 +27,7 @@ class ReportRecord:
         return datetime.fromtimestamp(t, ZoneInfo("America/Phoenix")).strftime('%-m/%-d/%y %-I:%M %p')
 
     def __str__(self):
-        return f"{self.table},{self.strategy},{self.status},{self.format_mst(self.start)},{self.format_mst(self.end)}," \
+        return f"{self.table},{self.strategy},{self.status},{self.format_mst(self.start)},{self.format_mst(self.end)},"\
                f"{self.duration:.2f},{self.num_records},{self.error.strip()}\n"
 
 

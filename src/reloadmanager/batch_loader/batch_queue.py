@@ -39,7 +39,7 @@ class BatchQueue:
             """, input_data)
 
     def poll_queue(self, strategy: str):
-        with pysqlite3.connect(self.db_path) as conn:
+        with pysqlite3.connect(self.db_path, timeout=15) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE BULK_QUEUE
