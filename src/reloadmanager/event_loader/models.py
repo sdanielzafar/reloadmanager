@@ -1,0 +1,64 @@
+from dataclasses import dataclass, fields
+
+from reloadmanager.utils.datetimes import EventTime
+
+
+@dataclass(frozen=True)
+class TrackerRecord:
+    source_table: str
+    event_time: EventTime
+
+
+@dataclass()
+class QueueRecord:
+    source_table: str
+    target_table: str
+    event_time: str
+    trigger_time: str | None
+    strategy: str
+    lock_rows: bool
+    status: str
+    priority: int
+
+
+@dataclass(frozen=True)
+class TableAttrRecord:
+    source_table: str
+    target_table: str | None
+    strategy: str
+    disabled: bool
+    priority: int
+    min_staleness: int
+    max_staleness: int | None
+
+    @classmethod
+    def from_csv(cls, line_str: str):
+        line: list[str] = line_str.split(",")
+        if len(line) != len(fields(cls)):
+            raise ValueError(f"CSV line {line} should have {len(fields(cls))} fields")
+
+        source_table, target_table, strategy, disabled, priority, min_staleness, max_staleness = line
+
+        def valid_table(s: str) -> str | None:
+            if s:
+                if len(s.split(".")) != 2:
+                    raise ValueError(f"Table '{s}' must have 2 namespaces in the input config file")
+                return s
+            return None
+
+        if strategy not in ["TPT", "WriteNOS"]:
+            raise ValueError(f"Input line: {line} has invalid method. Should be 'TPT' or 'WriteNOS'")
+
+        if disabled.strip().lower() not in ["true", "false"]:
+            raise ValueError(f"Input line: {line} has invalid disabled status. Should be 'true' or 'false'")
+        disabled = disabled.strip().lower() == "true"
+
+        return cls(
+            valid_table(source_table),
+            valid_table(target_table),
+            strategy,
+            disabled,
+            int(priority),
+            int(min_staleness or 0),
+            int(max_staleness)
+        )
