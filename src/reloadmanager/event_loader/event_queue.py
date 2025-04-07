@@ -120,6 +120,14 @@ class EventQueue:
                 AND event_time = ?
             """, (end_time, duration, source_table, event_time))
 
+    def recent_queued(self) -> str:
+        with pysqlite3.connect(self.db_path, timeout=30) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            SELECT MAX(event_time) FROM QUEUE WHERE status = 'Q'
+            """)
+            return cursor.fetchone()[0]
+
     def __len__(self) -> int:
         with pysqlite3.connect(self.db_path, timeout=30) as conn:
             cursor = conn.cursor()

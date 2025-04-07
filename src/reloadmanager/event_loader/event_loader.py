@@ -129,7 +129,10 @@ class EventLoader(LoggingMixin):
         return len([t for t in threads if t.is_alive()])
 
     def run(self):
+        self.logger.info(f"Initializing..")
         self.queue.create_queue()
+        # if len(self.queue) > 0:
+        #     max_queued: str = EventTime(self.queue.recent_queued())
 
         self.threads["TPT"]: list[EventLoaderThread] = self.create_workers("TPT", self.threads["TPT"])
         self.threads["WriteNOS"]: list[EventLoaderThread] = self.create_workers("WriteNOS", self.threads["WriteNOS"])
