@@ -7,7 +7,7 @@ from reloadmanager.threading.worker_thread import WorkerThread
 
 class BulkLoaderThread(WorkerThread):
     def __init__(self, thread_id: int, strategy: str, run_name: str, output_path: str, stop_signal: Event):
-        super().__init__(thread_id, strategy, run_name, stop_signal)
+        super().__init__(thread_id, strategy, f"~/batch_loads/configs/{run_name}", stop_signal)
         self.output_path: str = output_path
         self.queue: BatchQueue = BatchQueue(f"/home/arcion/batch_loads/sqlite/{run_name}.db")
         self.output_lock: Lock = Lock()
@@ -25,7 +25,7 @@ class BulkLoaderThread(WorkerThread):
                 self.report(result)
                 self.logger.info(f"Thread {self.thread_id} reloaded table '{source_table}'")
             except Exception as e:
-                self.logger.error(f"CRITICAL FAILURE: Thread {self.thread_id} failed to reload '{source_table}': {e}")
+                self.logger.exception(f"CRITICAL FAILURE: Thread {self.thread_id} failed to reload '{source_table}'")
             finally:
                 # remove table from queue
                 self.queue.dequeue(source_table)

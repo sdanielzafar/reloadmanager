@@ -41,7 +41,8 @@ class ReplicantRunner(LoggingMixin):
         with open(self.error_log_path, "r") as f:
             error_re: re.Pattern = re.compile(
                 r"Error running query|HiveSQLException|DeltaAnalysisException|FAILED: Execution Error|"
-                r"Failed to initialize pool|ExtractorException|Syntax error|Illegal Parquet type"
+                r"Failed to initialize pool|ExtractorException|Syntax error|Illegal Parquet type|"
+                r"DeltaInvariantViolationException"
             )
             unique_errors: set[str] = set([line.strip() for line in f if error_re.search(line)])
 

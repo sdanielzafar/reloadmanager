@@ -17,6 +17,7 @@ class EventLoader(LoggingMixin):
                  tpt_threads: int = 8,
                  writenos_threads: int = 2,
                  starting_watermark: str = str(EventTime.now()),
+                 reset_queue: bool = False,
                  table_metadata_csv: str = "/home/arcion/event_loader/table_metadata/TRTables.csv",
                  avoid_window_utc: str = "6-18",
                  sqlite_path: str = "/home/arcion/event_loader/sqlite/primary.db",
@@ -24,27 +25,37 @@ class EventLoader(LoggingMixin):
 
         self.catalog: str = catalog
         self.threads: dict = {"TPT": tpt_threads, "WriteNOS": writenos_threads}
-        self.starting_watermark: str = validate_dt_fmt(starting_watermark)
-        self.watermark: EventTime = EventTime(validate_dt_fmt(starting_watermark))
+        self.thread_pool: dict[str, list[EventLoaderThread]] = {"TPT": [], "WriteNOS": []}
         self.table_metadata_csv = table_metadata_csv
-        self.run_name: str = f"EventLoader_{str(EventTime.now())}"
+        self.run_name: str = f"EventLoader_{str(EventTime.now()).replace(' ', 'T').replace(':', '-')}"
         self.avoid_window: AvoidWindow | None = AvoidWindow(avoid_window_utc) if "-" in avoid_window_utc else None
         self.lock_rows_default: bool = lock_rows
+        self.sqlite_path: str = sqlite_path
         self.queue: EventQueue = EventQueue(sqlite_path)
+        self.reset_queue: bool = reset_queue
+        self.watermark: EventTime = self.init_watermark(starting_watermark, reset_queue)
         self.stop_signal: Event = Event()
         self.output_lock: Lock = Lock()
         self.log_lock: Lock = Lock()
         self.td_client: TeradataClient = TeradataClient()
 
+    def init_watermark(self, starting_watermark: str, reset_queue: bool) -> EventTime:
+        if len(self.queue) and not reset_queue:
+            self.logger.info(f"Determining watermark from the queue.")
+            return EventTime(self.queue.last_load_time())
+        return EventTime(validate_dt_fmt(starting_watermark))
+
     def query_tracking_table(self) -> list[TrackerRecord]:
         now: EventTime = EventTime.now()
-        rows = self.td_client.query(f"""
+        td_query: str = f"""
             SELECT 
                 ObjectDatabaseName || '.' || ObjectTableName as tbl, 
                 LoadCompletionTS as reload_ts 
-            FROM BACKUPDB.EBI_LOAD_COMPLETION_TS_GOLD 
-            WHERE LoadCompletionTS > {self.watermark}
-        """)
+            FROM EDWPC_SYNC.EBI_LOAD_COMPLETION_GOLD 
+            WHERE LoadCompletionTS > '{self.watermark}'
+        """
+        self.logger.debug(f"Teradata query: {td_query}")
+        rows = self.td_client.query(td_query)
         self.watermark = now
         return [TrackerRecord(tbl, EventTime(ts)) for tbl, ts in rows]
 
@@ -79,6 +90,8 @@ class EventLoader(LoggingMixin):
                     return 15
                 case t if t > -10:
                     return 20
+                case _:
+                    return 25
 
     # this uses the walrus operator :=, it just makes an intermediary variable available during for comprehension
     def update_priority(self, queued_tables: list[QueueRecord], new_tables: list[TrackerRecord]) -> list[QueueRecord]:
@@ -91,16 +104,20 @@ class EventLoader(LoggingMixin):
         # augment the new tables with the metadata
         new_tables_queue: list[QueueRecord] = [
             QueueRecord(
-                source_table,
-                (attrs := tbl_metadata[source_table]).target_table,
-                str(event_time),
+                record.source_table,
+                f"{self.catalog}.{(attrs := tbl_metadata[record.source_table]).target_table}",
+                str(record.event_time),
                 None,
                 attrs.strategy,
                 True,
                 'Q',
                 attrs.priority
-            ) for source_table, event_time in new_tables
+            ) for record in new_tables
+            # some tables in tracking table are actually CDC, so we only include if they are in the metadata table
+            if record.source_table in tbl_metadata.keys()
         ]
+
+        self.logger.info(f"Found {len(new_tables_queue)} tables to enqueue.")
 
         # update priorities for all, sorry this is ugly
         return [
@@ -118,37 +135,39 @@ class EventLoader(LoggingMixin):
         if count > 0:
             self.logger.info(f"Creating {count} {strategy} threads...")
             threads = [
-                EventLoaderThread(i, strategy, self.run_name, self.stop_signal) for i in range(count)
+                EventLoaderThread(i, strategy, self.run_name, self.sqlite_path, self.stop_signal)
+                for i in range(count)
             ]
             for thread in threads:
                 thread.start()
             return threads
+        return []
 
     def num_active_threads(self):
-        threads: list[EventLoaderThread] = self.threads["TPT"] + self.threads["WriteNOS"]
+        threads: list[EventLoaderThread] = self.thread_pool["TPT"] + self.thread_pool["WriteNOS"]
         return len([t for t in threads if t.is_alive()])
 
     def run(self):
         self.logger.info(f"Initializing..")
-        self.queue.create_queue()
-        # if len(self.queue) > 0:
-        #     max_queued: str = EventTime(self.queue.recent_queued())
+        self.queue.create()
+        if self.reset_queue:
+            self.logger.info("Clearing the queue...")
+            self.queue.truncate()
 
-        self.threads["TPT"]: list[EventLoaderThread] = self.create_workers("TPT", self.threads["TPT"])
-        self.threads["WriteNOS"]: list[EventLoaderThread] = self.create_workers("WriteNOS", self.threads["WriteNOS"])
+        self.thread_pool["TPT"]: list[EventLoaderThread] = self.create_workers("TPT", self.threads["TPT"])
+        self.thread_pool["WriteNOS"]: list[EventLoaderThread] = self.create_workers("WriteNOS", self.threads["WriteNOS"])
 
         try:
             while True:
                 # grab tables from the Teradata tracking table
-                self.logger.info(f"Querying tracking table with watermark {str(self.watermark)}.")
-                new_tables: list[TrackerRecord] = self.query_tracking_table()
-                self.logger.info(f"Found {len(new_tables)} tables to enqueue.")
+                self.logger.info(f"Querying tracking table with watermark: {str(self.watermark)}.")
+                updated_tables: list[TrackerRecord] = self.query_tracking_table()
 
                 # grab tables from queue
                 queue_tables: list[QueueRecord] = self.queue.in_queue
 
                 # grab the table details from the flat file and update priority
-                new_tables: list[QueueRecord] = self.update_priority(queue_tables, new_tables)
+                new_tables: list[QueueRecord] = self.update_priority(queue_tables, updated_tables)
 
                 if not new_tables:
                     self.logger.info(f"No tables in queue")
@@ -167,7 +186,9 @@ class EventLoader(LoggingMixin):
                 time.sleep(60)
         except KeyboardInterrupt:
             self.logger.info("Interrupt received. Sending stop signal for active threads...")
+        except Exception as e:
+            self.logger.info(f"Main thread failed with error: {str(e)}. Sending stop signal for active threads...")
+        finally:
             self.stop_signal.set()
-
-        for thread in self.threads["TPT"] + self.threads["WriteNOS"]:
-            thread.join()
+            for thread in self.thread_pool["TPT"] + self.thread_pool["WriteNOS"]:
+                thread.join()

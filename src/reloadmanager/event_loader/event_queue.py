@@ -1,4 +1,8 @@
-import pysqlite3
+import sys
+if sys.platform.startswith("darwin"):
+    import sqlite3 as sqlite3
+else:
+    import pysqlite3 as sqlite3
 import time
 import os
 
@@ -10,10 +14,10 @@ class EventQueue:
     def __init__(self, db_path: str):
         self.db_path: str = db_path
 
-    def create_queue(self):
-        os.makedirs(self.db_path, exist_ok=True)
+    def create(self):
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
 
-        with pysqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS QUEUE (
                     source_table TEXT PRIMARY KEY,
@@ -42,8 +46,13 @@ class EventQueue:
                 )
             """)
 
-    def poll_queue(self, strategy: str) -> tuple:
-        with pysqlite3.connect(self.db_path, timeout=15) as conn:
+    def truncate(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM QUEUE")
+            conn.execute("DELETE FROM QUEUE_HISTORY")
+
+    def poll(self, strategy: str) -> tuple:
+        with sqlite3.connect(self.db_path, timeout=15) as conn:
             cursor = conn.cursor()
             now = EventTime.from_epoch(int(time.time()))
 
@@ -78,7 +87,7 @@ class EventQueue:
         return source_table, target_table, lock_rows, event_time
 
     def upsert_queued(self, tables: list[QueueRecord]):
-        with pysqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path) as conn:
             conn.executemany("""
             INSERT INTO QUEUE (
                 source_table, target_table, event_time, trigger_time, strategy, lock_rows, status, priority
@@ -91,7 +100,7 @@ class EventQueue:
 
     @property
     def in_queue(self) -> list[QueueRecord]:
-        with pysqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT * FROM QUEUE
@@ -102,7 +111,7 @@ class EventQueue:
 
     def dequeue(self, source_table: str, event_time: str, end_time: float, duration: float):
 
-        with pysqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
             DELETE FROM QUEUE
@@ -120,8 +129,8 @@ class EventQueue:
                 AND event_time = ?
             """, (end_time, duration, source_table, event_time))
 
-    def recent_queued(self) -> str:
-        with pysqlite3.connect(self.db_path, timeout=30) as conn:
+    def last_load_time(self) -> str:
+        with sqlite3.connect(self.db_path, timeout=30) as conn:
             cursor = conn.cursor()
             cursor.execute("""
             SELECT MAX(event_time) FROM QUEUE WHERE status = 'Q'
@@ -129,7 +138,7 @@ class EventQueue:
             return cursor.fetchone()[0]
 
     def __len__(self) -> int:
-        with pysqlite3.connect(self.db_path, timeout=30) as conn:
+        with sqlite3.connect(self.db_path, timeout=30) as conn:
             cursor = conn.cursor()
             cursor.execute("""
             SELECT COUNT(*) FROM QUEUE WHERE status = 'Q'

@@ -20,16 +20,32 @@ class QueueRecord:
     status: str
     priority: int
 
+    def __getitem__(self, index):
+        f = (
+            self.source_table,
+            self.target_table,
+            self.event_time,
+            self.trigger_time,
+            self.strategy,
+            self.lock_rows,
+            self.status,
+            self.priority
+        )
+        return f[index]
+
+    def __len__(self):
+        return 8
+
 
 @dataclass(frozen=True)
 class TableAttrRecord:
     source_table: str
-    target_table: str | None
+    target_table: str
     strategy: str
     disabled: bool
     priority: int
     min_staleness: int
-    max_staleness: int | None
+    max_staleness: int
 
     @classmethod
     def from_csv(cls, line_str: str):
@@ -38,6 +54,12 @@ class TableAttrRecord:
             raise ValueError(f"CSV line {line} should have {len(fields(cls))} fields")
 
         source_table, target_table, strategy, disabled, priority, min_staleness, max_staleness = line
+
+        if not target_table:
+            target_table = source_table
+
+        if not min_staleness:
+            min_staleness = 0
 
         def valid_table(s: str) -> str | None:
             if s:

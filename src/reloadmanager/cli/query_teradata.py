@@ -2,7 +2,7 @@ from reloadmanager.clients.teradata_client import TeradataClient
 
 
 def main(args):
-    with TeradataClient() as connector:
-        results = connector.query(args.query)
-        for row in results:
-            print(row)
+    td_client: TeradataClient = TeradataClient()
+    results = td_client.query(args.query)
+    for row in results:
+        print(row)
