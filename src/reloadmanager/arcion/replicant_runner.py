@@ -1,7 +1,6 @@
 import logging
 import os.path
 from datetime import datetime
-from dataclasses import dataclass
 from subprocess import CalledProcessError
 
 # for error handler
@@ -12,17 +11,6 @@ from functools import cached_property
 from reloadmanager.arcion.replicant_config_builder import ReplicantConfigBuilder
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.arcion.cli_runner import run_cli_cmd
-
-
-@dataclass(frozen=True)
-class SnapshotMetrics:
-    start: float
-    end: float
-    num_records: int
-
-    @property
-    def duration(self) -> float:
-        return (self.end - self.start) / 60
 
 
 class ReplicantRunError(Exception):
@@ -53,7 +41,7 @@ class ReplicantRunner(LoggingMixin):
         with open(self.error_log_path, "r") as f:
             error_re: re.Pattern = re.compile(
                 r"Error running query|HiveSQLException|DeltaAnalysisException|FAILED: Execution Error|"
-                r"Failed to initialize pool|ExtractorException|Syntax error"
+                r"Failed to initialize pool|ExtractorException|Syntax error|Illegal Parquet type"
             )
             unique_errors: set[str] = set([line.strip() for line in f if error_re.search(line)])
 
@@ -111,8 +99,7 @@ class ReplicantRunner(LoggingMixin):
         self.logger.info(f"\tLogging to: {self.log_file}...")
 
         status: str = "SUCCESS"
-        try:
-            run_cli_cmd([
+        cmd: list[str] = [
                 self.replicant_path, "snapshot",
                 self.builder.config_file_paths.source,
                 self.builder.config_file_paths.target,
@@ -122,7 +109,10 @@ class ReplicantRunner(LoggingMixin):
                 "--map", self.builder.config_file_paths.map,
                 "--id", self.builder.id,
                 "--truncate-existing"
-            ], self.log_file)
+            ]
+        self.logger.debug(f"Running replicant command: '{' '.join(cmd)}'")
+        try:
+            run_cli_cmd(cmd, self.log_file)
         except CalledProcessError as e:
             status = "FAILED"
             self.logger.warning(f"Replicant failed: {str(e.cmd)} failed with return code {str(e.returncode)}")
