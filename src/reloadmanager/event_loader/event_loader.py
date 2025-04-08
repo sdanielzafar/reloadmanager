@@ -1,4 +1,5 @@
 import time
+import traceback
 from threading import Event, Lock
 from dataclasses import replace
 
@@ -186,8 +187,14 @@ class EventLoader(LoggingMixin):
                 time.sleep(60)
         except KeyboardInterrupt:
             self.logger.info("Interrupt received. Sending stop signal for active threads...")
+            print("------------KeyboardInterrupt--------------")
         except Exception as e:
             self.logger.info(f"Main thread failed with error: {str(e)}. Sending stop signal for active threads...")
+            print("------------Exception--------------")
+        except:
+            traceback.print_exc()
+            self.logger.info(f"got here")
+            print("Caught absolutely everything, including Ctrl-C!")
         finally:
             self.stop_signal.set()
             for thread in self.thread_pool["TPT"] + self.thread_pool["WriteNOS"]:

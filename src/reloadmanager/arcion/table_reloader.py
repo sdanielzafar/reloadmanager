@@ -20,7 +20,7 @@ class ReportRecord:
 
     @property
     def duration(self) -> float:
-        return (self.end - self.start) / 60
+        return round((self.end - self.start) / 60, 2)
 
     @staticmethod
     def format_mst(t: float) -> str:

@@ -34,7 +34,7 @@ class EventQueue:
                 CREATE TABLE IF NOT EXISTS QUEUE_HISTORY (
                     source_table TEXT,
                     target_table TEXT,
-                    status CHAR(1),
+                    status TEXT,
                     event_time TEXT,
                     trigger_time TEXT,
                     finish_time TEXT,
@@ -42,6 +42,7 @@ class EventQueue:
                     strategy TEXT,
                     lock_rows INTEGER CHECK(lock_rows IN (0, 1)),
                     priority INTEGER,
+                    error TEXT,
                     PRIMARY KEY (source_table, event_time)
                 )
             """)
@@ -81,8 +82,8 @@ class EventQueue:
             cursor.execute("""
                 INSERT INTO QUEUE_HISTORY (
                     source_table, target_table, status, event_time, trigger_time, strategy, lock_rows, priority
-                ) VALUES (?, ?, 'R', ?, ?, ?, ?, ?)
-            """, (source_table, target_table, event_time, now, strategy, lock_rows, priority))
+                ) VALUES (?, ?, 'RUNNING', ?, ?, ?, ?, ?)
+            """, (source_table, target_table, event_time, str(now), strategy, lock_rows, priority))
 
         return source_table, target_table, lock_rows, event_time
 
@@ -109,7 +110,7 @@ class EventQueue:
             rows: list[tuple] = cursor.fetchall()
         return [QueueRecord(*row) for row in rows]
 
-    def dequeue(self, source_table: str, event_time: str, end_time: float, duration: float):
+    def dequeue(self, source_table: str, event_time: str, end_time: float, duration: float, status: str, error: str):
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -122,12 +123,13 @@ class EventQueue:
 
             cursor.execute("""
                 UPDATE QUEUE_HISTORY
-                SET status = 'F',
+                SET status = ?,
                     finish_time = ?,
-                    duration_min = ?
+                    duration_min = ?,
+                    error = ?
                 WHERE source_table = ?
                 AND event_time = ?
-            """, (end_time, duration, source_table, event_time))
+            """, (status, str(EventTime.from_epoch(int(end_time))), duration, error, source_table, event_time))
 
     def last_load_time(self) -> str:
         with sqlite3.connect(self.db_path, timeout=30) as conn:
@@ -138,9 +140,15 @@ class EventQueue:
             return cursor.fetchone()[0]
 
     def __len__(self) -> int:
-        with sqlite3.connect(self.db_path, timeout=30) as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-            SELECT COUNT(*) FROM QUEUE WHERE status = 'Q'
-            """)
-            return cursor.fetchone()[0]
+        try:
+            with sqlite3.connect(self.db_path, timeout=30) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                SELECT COUNT(*) FROM QUEUE WHERE status = 'Q'
+                """)
+                return cursor.fetchone()[0]
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                return 0
+            else:
+                raise

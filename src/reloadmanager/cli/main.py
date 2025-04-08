@@ -24,7 +24,7 @@ def main():
     td_query_parser.add_argument("--query", required=True, help="Query")
     td_query_parser.set_defaults(func=query_teradata.main)
 
-    # Subcommand: batch_load_csv
+    # Subcommand: batch_load
     batch_load_parser = subparsers.add_parser("batch-load", help="Reload multiple tables")
     batch_load_parser.add_argument("--input-csv", required=True, help="The input csv file")
     batch_load_parser.add_argument("--output", required=True, help="The output location")
