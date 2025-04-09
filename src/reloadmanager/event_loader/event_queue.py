@@ -1,4 +1,7 @@
 import sys
+
+from reloadmanager.mixins.logging_mixin import LoggingMixin
+
 if sys.platform.startswith("darwin"):
     import sqlite3 as sqlite3
 else:
@@ -10,7 +13,7 @@ from reloadmanager.event_loader.models import QueueRecord
 from reloadmanager.utils.datetimes import EventTime
 
 
-class EventQueue:
+class EventQueue(LoggingMixin):
     def __init__(self, db_path: str):
         self.db_path: str = db_path
 
@@ -52,6 +55,25 @@ class EventQueue:
             conn.execute("DELETE FROM QUEUE")
             conn.execute("DELETE FROM QUEUE_HISTORY")
 
+    def requeue_running(self):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE QUEUE
+                SET status = 'Q'
+                WHERE status = 'R'
+                RETURNING source_table, event_time
+                """)
+            rows: list[tuple] = cursor.fetchall()
+
+            for source_table, event_time in rows:
+                self.logger.info(f"Put {source_table} back in queue...")
+                cursor.execute("""
+                DELETE FROM QUEUE_HISTORY 
+                WHERE source_table = ?
+                AND event_time = ?
+                """, (source_table, event_time))
+
     def poll(self, strategy: str) -> tuple:
         with sqlite3.connect(self.db_path, timeout=15) as conn:
             cursor = conn.cursor()
@@ -80,10 +102,30 @@ class EventQueue:
             source_table, target_table, event_time, strategy, lock_rows, priority = row
 
             cursor.execute("""
-                INSERT INTO QUEUE_HISTORY (
-                    source_table, target_table, status, event_time, trigger_time, strategy, lock_rows, priority
-                ) VALUES (?, ?, 'RUNNING', ?, ?, ?, ?, ?)
-            """, (source_table, target_table, event_time, str(now), strategy, lock_rows, priority))
+                SELECT status FROM QUEUE_HISTORY 
+                WHERE source_table = ?
+                AND event_time = ?
+            """, (source_table, event_time))
+            row = cursor.fetchone()
+
+            if not row:
+                cursor.execute("""
+                    INSERT INTO QUEUE_HISTORY (
+                        source_table, target_table, status, event_time, trigger_time, strategy, lock_rows, priority
+                    ) VALUES (?, ?, 'RUNNING', ?, ?, ?, ?, ?)
+                """, (source_table, target_table, event_time, str(now), strategy, lock_rows, priority))
+            else:
+                # if it's status "RUNNING" we do nothing, but...
+                if row[0] == "SUCCESS" or row[0] == "FAILED":
+                    self.logger.warning(
+                        f"Source table: {source_table} with event time {event_time} was previously processed with "
+                        f"status {row[0]}, removing from QUEUE_HISTORY and reprocessing it."
+                    )
+                    cursor.execute("""
+                        DELETE FROM QUEUE_HISTORY 
+                        WHERE source_table = ?
+                        AND event_time = ?
+                    """, (source_table, event_time))
 
         return source_table, target_table, lock_rows, event_time
 

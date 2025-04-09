@@ -43,7 +43,6 @@ class TeradataClient(SecretMixin, LoggingMixin):
                     print(f"Teradata JDBC connection cleanup failed: {e}")
 
     def query(self, sql: str) -> list[tuple]:
-        """Execute a query in a flawless ephemeral ritual."""
         with self._connection() as cursor:
             try:
                 cursor.execute(sql)
