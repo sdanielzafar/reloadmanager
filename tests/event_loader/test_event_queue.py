@@ -88,7 +88,7 @@ def test_poll_queue(event_queue, temp_db_path):
         """, records)
 
     # Poll for strategy_b – expects the highest priority row
-    polled = event_queue.poll_queue("strategy_b")
+    polled = event_queue.poll("strategy_b")
     # Should be ('source2', 'target2', 0, '2025-01-02') from the code’s return signature
     assert polled
     assert polled[0] == "source2"
@@ -108,7 +108,7 @@ def test_poll_queue(event_queue, temp_db_path):
         cursor = conn.cursor()
         cursor.execute("SELECT status FROM QUEUE_HISTORY WHERE source_table='source2'")
         hist_status = cursor.fetchone()[0]
-        assert hist_status == 'R'
+        assert hist_status == 'RUNNING'
 
 
 def test_upsert_queued(event_queue, temp_db_path):
@@ -128,8 +128,8 @@ def test_upsert_queued(event_queue, temp_db_path):
     # Attempt to upsert a new priority for sourceA
     # and insert a brand-new row sourceB
     new_records = [
-        QueueRecord("sourceA", "targetA", "2025-01-01", "", "stratA", True, "Q", 10),
-        QueueRecord("sourceB", "targetB", "2025-01-02", "", "stratB", False, "Q", 99),
+        QueueRecord("sourceA", "targetA", "2025-01-01", "", "stratA", True, "Q", 10, None),
+        QueueRecord("sourceB", "targetB", "2025-01-02", "", "stratB", False, "Q", 99, None),
     ]
     event_queue.upsert_queued(new_records)
 
@@ -187,10 +187,10 @@ def test_dequeue(event_queue, temp_db_path):
         conn.execute("""
             INSERT INTO QUEUE_HISTORY (source_table, target_table, status, event_time, trigger_time,
                                        finish_time, duration_min, strategy, lock_rows, priority)
-            VALUES ('sourceZ', 'targetZ', 'R', '2025-01-01', '2025-01-01', '', NULL, 'stratZ', 1, 5)
+            VALUES ('sourceZ', 'targetZ', 'RUNNING', '2025-01-01', '2025-01-01', '', NULL, 'stratZ', 1, 5)
         """)
 
-    end_time = str(EventTime.from_epoch(int(time.time())))
+    end_time = EventTime.from_epoch(int(time.time()))
     duration = 2.5
     event_queue.dequeue("sourceZ", "2025-01-01", end_time, duration, 999, "SUCCESS", "")
 
@@ -205,39 +205,32 @@ def test_dequeue(event_queue, temp_db_path):
 
         # Confirm QUEUE_HISTORY got updated
         cursor.execute("""
-            SELECT status, finish_time, duration_min
+            SELECT status, finish_time, duration_min, num_records
             FROM QUEUE_HISTORY
             WHERE source_table='sourceZ'
         """)
         row = cursor.fetchone()
-        assert row[0] == 'F'
-        assert row[1] == end_time
+        assert row[0] == 'SUCCESS'
+        assert row[1] == str(end_time)
         assert row[2] == duration
         assert row[3] == 999
 
 
-def test_recent_queued(event_queue, temp_db_path):
+def test_last_load_time(event_queue, temp_db_path):
     """
-    Checks if recent_queued gives the newest event_time among 'Q' rows.
+    Checks if last_load_time gives the newest event_time among 'Q' rows.
     """
-    # Insert multiple Q and non-Q statuses
-    with sqlite3.connect(temp_db_path) as conn:
-        conn.execute("""
-            INSERT INTO QUEUE (source_table, target_table, event_time, trigger_time, strategy, lock_rows, status, priority)
-            VALUES ('tableA', 'targetA', '2025-01-01', '', 'stratA', 1, 'Q', 5)
-        """)
-        conn.execute("""
-            INSERT INTO QUEUE (source_table, target_table, event_time, trigger_time, strategy, lock_rows, status, priority)
-            VALUES ('tableB', 'targetB', '2025-01-02', '', 'stratB', 0, 'F', 3)
-        """)
-        conn.execute("""
-            INSERT INTO QUEUE (source_table, target_table, event_time, trigger_time, strategy, lock_rows, status, priority)
-            VALUES ('tableC', 'targetC', '2025-01-03', '', 'stratC', 0, 'Q', 9)
-        """)
 
-    recent = event_queue.recent_queued()
+    event_queue.upsert_queued([
+        QueueRecord("sourceA", "targetA", "2025-01-01 00:00:01", "", "stratA", True, "Q", 10, None),
+        QueueRecord("sourceB", "targetB", "2025-01-02 00:00:01", "", "stratB", False, "Q", 99, None)
+    ])
+    event_queue.upsert_queued([
+        QueueRecord("sourceA", "targetA", "2025-01-03 00:00:01", "", "stratA", True, "Q", 10, None)
+    ])
+
     # Expect '2025-01-03'
-    assert recent == '2025-01-03'
+    assert event_queue.last_load_time() == "2025-01-03 00:00:01"
 
 
 def test_len(event_queue, temp_db_path):
