@@ -19,6 +19,7 @@ class QueueRecord:
     lock_rows: bool
     status: str
     priority: int
+    event_time_latest: str | None
 
     def __getitem__(self, index):
         f = (
@@ -29,12 +30,13 @@ class QueueRecord:
             self.strategy,
             self.lock_rows,
             self.status,
-            self.priority
+            self.priority,
+            self.event_time_latest
         )
         return f[index]
 
     def __len__(self):
-        return 8
+        return 9
 
 
 @dataclass(frozen=True)

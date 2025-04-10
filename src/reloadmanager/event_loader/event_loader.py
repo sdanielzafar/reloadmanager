@@ -1,5 +1,4 @@
 import time
-import traceback
 from threading import Event, Lock
 from dataclasses import replace
 
@@ -34,20 +33,26 @@ class EventLoader(LoggingMixin):
         self.sqlite_path: str = sqlite_path
         self.queue: EventQueue = EventQueue(sqlite_path)
         self.reset_queue: bool = reset_queue
-        self.watermark: EventTime = self.init_watermark(starting_watermark, reset_queue)
+        self.watermark: EventTime = EventTime(validate_dt_fmt(starting_watermark))
         self.stop_signal: Event = Event()
         self.output_lock: Lock = Lock()
         self.log_lock: Lock = Lock()
         self.td_client: TeradataClient = TeradataClient()
 
-    def init_watermark(self, starting_watermark: str, reset_queue: bool) -> EventTime:
-        if len(self.queue) and not reset_queue:
-            self.logger.info(f"Determining watermark from the queue.")
-            return EventTime(self.queue.last_load_time())
-        return EventTime(validate_dt_fmt(starting_watermark))
+    def init_watermark(self):
+        """
+        If there are things in the queue or queue history then the starting watermark is the latest timestamp from those
+        If these are empty then we use the starting timestamp.
+        We assume that all running jobs have been re-queued before this is called.
+        """
+        last_load_time: str = self.queue.last_load_time()
+        if last_load_time:
+            self.logger.info(f"Determined watermark from the queue: {last_load_time}.")
+            self.watermark = EventTime(last_load_time)
+        else:
+            self.logger.info(f"Using starting watermark: {str(self.watermark)}.")
 
     def query_tracking_table(self) -> list[TrackerRecord]:
-        now: EventTime = EventTime.now()
         td_query: str = f"""
             SELECT 
                 ObjectDatabaseName || '.' || ObjectTableName as tbl, 
@@ -57,7 +62,6 @@ class EventLoader(LoggingMixin):
         """
         self.logger.debug(f"Teradata query: {td_query}")
         rows = self.td_client.query(td_query)
-        self.watermark = now
         return [TrackerRecord(tbl, EventTime(ts)) for tbl, ts in rows]
 
     @staticmethod
@@ -112,24 +116,26 @@ class EventLoader(LoggingMixin):
                 attrs.strategy,
                 True,
                 'Q',
-                attrs.priority
+                attrs.priority,
+                None
             ) for record in new_tables
             # some tables in tracking table are actually CDC, so we only include if they are in the metadata table
             if record.source_table in tbl_metadata.keys()
         ]
 
         self.logger.info(f"Found {len(new_tables_queue)} tables to enqueue.")
+        self.logger.debug(f"{str(new_tables_queue)}")
 
         # update priorities for all, sorry this is ugly
         return [
-            replace(t,
-                    priority=self.set_priority(
-                        t.event_time,
-                        (attrs := tbl_metadata[t.source_table]).min_staleness,
-                        attrs.max_staleness
-                    ) * attrs.priority
-                    )
-            for t in queued_tables + new_tables_queue
+            replace(
+                t,
+                priority=self.set_priority(
+                    t.event_time,
+                    (attrs := tbl_metadata[t.source_table]).min_staleness,
+                    attrs.max_staleness
+                ) * attrs.priority
+            ) for t in queued_tables + new_tables_queue
         ]
 
     def create_workers(self, strategy, count) -> list[EventLoaderThread]:
@@ -157,6 +163,8 @@ class EventLoader(LoggingMixin):
         else:
             self.queue.requeue_running()
 
+        self.init_watermark()
+
         self.thread_pool["TPT"]: list[EventLoaderThread] = self.create_workers("TPT", self.threads["TPT"])
         self.thread_pool["WriteNOS"]: list[EventLoaderThread] = self.create_workers("WriteNOS", self.threads["WriteNOS"])
 
@@ -181,12 +189,15 @@ class EventLoader(LoggingMixin):
                 self.queue.upsert_queued(new_tables)
                 self.logger.info(f"Enqueud new tables and updated priorities.")
 
+                # update watermark
+                self.watermark = self.queue.last_load_time()
+
                 num_queued: int = len(new_tables)
                 self.logger.info(f"PROGRESS: {num_queued} tables in queue")
                 if num_queued > 0 and self.num_active_threads() == 0:
                     raise RuntimeError(f"{num_queued} items in queue, but no active threads.")
 
-                time.sleep(60)
+                time.sleep(120)
         except KeyboardInterrupt:
             self.logger.info("Interrupt received. Sending stop signal for active threads...")
             self.stop_signal.set()

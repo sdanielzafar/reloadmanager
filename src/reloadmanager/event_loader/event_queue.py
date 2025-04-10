@@ -30,7 +30,8 @@ class EventQueue(LoggingMixin):
                     strategy TEXT,
                     lock_rows INTEGER CHECK(lock_rows IN (0, 1)),
                     status CHAR(1),
-                    priority INTEGER
+                    priority INTEGER,
+                    event_time_latest TEXT
                 )
             """)
             conn.execute("""
@@ -133,11 +134,13 @@ class EventQueue(LoggingMixin):
         with sqlite3.connect(self.db_path) as conn:
             conn.executemany("""
             INSERT INTO QUEUE (
-                source_table, target_table, event_time, trigger_time, strategy, lock_rows, status, priority
+                source_table, target_table, event_time, trigger_time, strategy, lock_rows, status, priority, 
+                event_time_latest
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(source_table) DO UPDATE SET
-                priority = excluded.priority
+                priority = excluded.priority,
+                event_time_latest = excluded.event_time
             WHERE QUEUE.status = 'Q'
             """, tables)
 
@@ -177,9 +180,16 @@ class EventQueue(LoggingMixin):
         with sqlite3.connect(self.db_path, timeout=30) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-            SELECT MAX(event_time) FROM QUEUE WHERE status = 'Q'
+            SELECT MAX(et) FROM (
+                SELECT MAX(COALESCE(event_time_latest, event_time)) as et FROM QUEUE
+                UNION ALL 
+                SELECT MAX(event_time) as et FROM QUEUE_HISTORY
+                )
             """)
-            return cursor.fetchone()[0]
+            row = cursor.fetchone()
+            if not row:
+                return ""
+            return row[0]
 
     def __len__(self) -> int:
         try:
