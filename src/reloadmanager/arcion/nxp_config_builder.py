@@ -21,6 +21,9 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
         self.databricks_pat = self.get_secret("DATABRICKS_PAT")
         self.aws_key = self.get_secret("AWS_KEY")
         self.aws_secret = self.get_secret("AWS_SECRET")
+        self.aws_bucket = self.get_secret("AWS_BUCKET")
+        self.dbx_host = self.get_secret("DBX_HOST")
+        self.dbx_warehouse = self.get_secret("DBX_WAREHOUSE")
 
         # need to do this as a separate call, not in the parent's constructor or else the above attributes will
         # not be passed in because they won't be defined yet.
@@ -46,9 +49,10 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
 
         return TargetConfig(
             type="DATABRICKS_LAKEHOUSE",
-            host="dbc-7c9eb967-788d.cloud.databricks.com",
+            host=self.dbx_host,
             port="443",
-            url="jdbc:databricks://dbc-7c9eb967-788d.cloud.databricks.com:443/default;transportMode=http;ssl=1;AuthMech=3;httpPath=/sql/1.0/warehouses/79ae80263968b83a;",
+            url=f"jdbc:databricks://{self.dbx_host}:443/default;transportMode=http;ssl=1;AuthMech=3;"
+                f"httpPath=/sql/1.0/warehouses/{self.dbx_warehouse};",
             username="token",
             password=self.databricks_pat,
             max_connections="8",
@@ -56,7 +60,7 @@ class NxpConfigBuilder(ReplicantConfigBuilder):
             stage_type="S3",
             stage_root_dir=f"replicant-stage/{self.oauth_client_id}/{self.id}/"
                            f"migration_{self.source_table.table}_{ts}",
-            stage_conn_url="1dp-migration-acrion-td-sync",
+            stage_conn_url=self.aws_bucket,
             stage_key_id=self.aws_key,
             stage_secret_key=self.aws_secret,
             stage_file_format="PARQUET",
