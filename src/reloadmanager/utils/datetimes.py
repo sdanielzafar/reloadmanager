@@ -2,26 +2,12 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
-# def now_fmt_mst() -> str:
-#     tz = ZoneInfo("America/Phoenix")
-#     current_dt_mst = datetime.now(tz)
-#     return current_dt_mst.strftime("%Y-%m-%d %H:%M:%S")
-
-
 def validate_dt_fmt(dt_string: str) -> str:
     try:
         datetime.strptime(dt_string, '%Y-%m-%d %H:%M:%S')
         return dt_string
     except ValueError:
         raise ValueError(f"Datetime passed {dt_string} is incorrect. Must match format '%Y-%m-%d %H:%M:%S'")
-
-#
-# def to_epoch_mst(ts: str | None) -> int | None:
-#     if ts is None:
-#         return None
-#     dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
-#     dt_phoenix = dt.replace(tzinfo=ZoneInfo("America/Phoenix"))
-#     return int(dt_phoenix.timestamp())
 
 
 tz = ZoneInfo("America/Phoenix")
