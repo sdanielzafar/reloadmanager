@@ -47,6 +47,7 @@ class EventQueue(LoggingMixin):
                     lock_rows INTEGER CHECK(lock_rows IN (0, 1)),
                     priority INTEGER,
                     error TEXT,
+                    num_records INTEGER,
                     PRIMARY KEY (source_table, event_time)
                 )
             """)
@@ -155,7 +156,10 @@ class EventQueue(LoggingMixin):
             rows: list[tuple] = cursor.fetchall()
         return [QueueRecord(*row) for row in rows]
 
-    def dequeue(self, source_table: str, event_time: str, end_time: float, duration: float, status: str, error: str):
+    def dequeue(self, source_table: str, event_time: str, end_time: float,
+                duration: float, n_records: int, status: str, error: str):
+
+        end_time_str: str = str(EventTime.from_epoch(int(end_time)))
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -167,14 +171,15 @@ class EventQueue(LoggingMixin):
             """, (source_table, event_time))
 
             cursor.execute("""
-                UPDATE QUEUE_HISTORY
-                SET status = ?,
-                    finish_time = ?,
-                    duration_min = ?,
-                    error = ?
-                WHERE source_table = ?
-                AND event_time = ?
-            """, (status, str(EventTime.from_epoch(int(end_time))), duration, error, source_table, event_time))
+            UPDATE QUEUE_HISTORY
+            SET status = ?,
+            finish_time = ?,
+            duration_min = ?,
+            num_records = ?,
+            error = ?
+            WHERE source_table = ?
+            AND event_time = ?
+            """, (status, end_time_str, duration, n_records, error, source_table, event_time))
 
     def last_load_time(self) -> str:
         with sqlite3.connect(self.db_path, timeout=30) as conn:

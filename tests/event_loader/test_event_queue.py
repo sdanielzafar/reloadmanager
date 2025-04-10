@@ -192,7 +192,7 @@ def test_dequeue(event_queue, temp_db_path):
 
     end_time = str(EventTime.from_epoch(int(time.time())))
     duration = 2.5
-    event_queue.dequeue("sourceZ", "2025-01-01", end_time, duration)
+    event_queue.dequeue("sourceZ", "2025-01-01", end_time, duration, 999, "SUCCESS", "")
 
     # Confirm removal from QUEUE
     with sqlite3.connect(temp_db_path) as conn:
@@ -213,6 +213,7 @@ def test_dequeue(event_queue, temp_db_path):
         assert row[0] == 'F'
         assert row[1] == end_time
         assert row[2] == duration
+        assert row[3] == 999
 
 
 def test_recent_queued(event_queue, temp_db_path):

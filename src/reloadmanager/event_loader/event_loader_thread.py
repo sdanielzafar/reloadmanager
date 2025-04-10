@@ -24,20 +24,21 @@ class EventLoaderThread(WorkerThread):
             return None
 
         source_table, target_table, lock_rows, event_time = task
-        duration, end_time, status, error = 0.0, 0.0, 'Failed', ""
+        duration, end_time, n_records, status, error = 0.0, 0.0, 0, 'Failed', ""
         try:
             self.logger.info(f"Thread {self.thread_id} picked up {source_table}...")
             # reload the table
             result: ReportRecord = self.reload_table(source_table, target_table, lock_rows)
 
             self.logger.info(f"Thread {self.thread_id} reloaded table '{source_table}'")
-            duration, end_time, status, error = result.duration, result.end, result.status, result.error
+            duration, end_time, n_records, status, error = \
+                result.duration, result.end, result.num_records, result.status, result.error
         except Exception as e:
             self.logger.error(f"CRITICAL FAILURE: Thread {self.thread_id} failed to reload '{source_table}': {e}")
             traceback.print_exc()
         finally:
             # remove table from queue
-            self.queue.dequeue(source_table, event_time, end_time, duration, status, error)
+            self.queue.dequeue(source_table, event_time, end_time, duration, n_records, status, error)
 
     def report(self, record: ReportRecord):
         pass
