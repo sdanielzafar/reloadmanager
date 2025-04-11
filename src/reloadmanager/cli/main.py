@@ -1,5 +1,5 @@
 import argparse
-from reloadmanager.cli import reload_table, query_teradata, batch_load, event_load
+from reloadmanager.cli import reload_table, query_teradata, batch_load, event_load, query_databricks
 from reloadmanager.utils.datetimes import EventTime
 
 
@@ -20,9 +20,14 @@ def main():
     reload_parser.set_defaults(func=reload_table.main)
 
     # Subcommand: query_teradata
-    td_query_parser = subparsers.add_parser("query-teradata", help="Reload a single table")
+    td_query_parser = subparsers.add_parser("query-teradata", help="Query Teradata")
     td_query_parser.add_argument("--query", required=True, help="Query")
     td_query_parser.set_defaults(func=query_teradata.main)
+
+    # Subcommand: query_teradata
+    dbx_query_parser = subparsers.add_parser("query-databricks", help="Query Databricks")
+    dbx_query_parser.add_argument("--query", required=True, help="Query")
+    dbx_query_parser.set_defaults(func=query_databricks.main)
 
     # Subcommand: batch_load
     batch_load_parser = subparsers.add_parser("batch-load", help="Reload multiple tables")
