@@ -10,7 +10,7 @@ from functools import cached_property
 
 from reloadmanager.arcion.replicant_config_builder import ReplicantConfigBuilder
 from reloadmanager.mixins.logging_mixin import LoggingMixin
-from reloadmanager.arcion.cli_runner import run_cli_cmd
+from reloadmanager.arcion.cli_runner import CliRunner
 
 
 class ReplicantRunError(Exception):
@@ -19,17 +19,31 @@ class ReplicantRunError(Exception):
 
 
 class ReplicantRunner(LoggingMixin):
+    def __init__(
+        self,
+        builder: ReplicantConfigBuilder,
+        replicant_path: str | None = None,
+        cli_runner: CliRunner | None = None,
+        log_file_path: str | None = None,
+        error_log_path: str | None = None,
+    ):
+        self.builder = builder
+        self.replicant_path = replicant_path or "/arcion/replicant-cli/bin/replicant"
+        self.cli = cli_runner or CliRunner()
 
-    def __init__(self,
-                 builder: ReplicantConfigBuilder,
-                 replicant_path: str | None = None):
-        self.replicant_path: str = replicant_path or "/arcion/replicant-cli/bin/replicant"
-        self.builder: ReplicantConfigBuilder = builder
-        self.error_log_path: str = f"/arcion/replicant-cli/data/{self.builder.id.lower()}/error_trace.log"
+        self._provided_log_file_path = log_file_path
+        self._provided_error_log_path = error_log_path
 
     @cached_property
     def log_file(self):
-        return f"{self.builder.config_dir_path}/{self.builder.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        if self._provided_log_file_path:
+            return self._provided_log_file_path
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"{self.builder.config_dir_path}/{self.builder.id}_{ts}.log"
+
+    @cached_property
+    def error_log_path(self):
+        return self._provided_error_log_path or f"/arcion/replicant-cli/data/{self.builder.id.lower()}/error_trace.log"
 
     @cached_property
     def error(self) -> str:
@@ -113,7 +127,7 @@ class ReplicantRunner(LoggingMixin):
             ]
         self.logger.debug(f"Running replicant command: '{' '.join(cmd)}'")
         try:
-            run_cli_cmd(cmd, self.log_file)
+            self.cli.run(cmd, self.log_file)
         except CalledProcessError as e:
             status = "FAILED"
             self.logger.warning(f"Replicant failed: {str(e.cmd)} failed with return code {str(e.returncode)}")
