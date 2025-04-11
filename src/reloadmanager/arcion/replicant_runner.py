@@ -95,7 +95,7 @@ class ReplicantRunner(LoggingMixin):
 
         return int(num_records)
 
-    def _handle_failure(self, replicant_error: str, num_records: int):
+    def _handle_failure(self, replicant_error: str, num_records: int, cmd: str):
         if replicant_error and num_records:
             raise ReplicantRunError(replicant_error)
         elif replicant_error:
@@ -104,7 +104,8 @@ class ReplicantRunner(LoggingMixin):
             self.logger.warning(f"Replicant transferred 0 rows, source table may be empty. Marking as SUCCESS. "
                                 f"Error was: {str(replicant_error)}")
         else:
-            raise ReplicantRunError(f"Unknown error, check logs at: {self.error_log_path}")
+            raise ReplicantRunError(f"Unknown error, check logs at: {self.log_file} and {self.error_log_path}. "
+                                    f"Re-run the command with '{cmd}'")
 
     def run_snapshot(self):
 
@@ -123,7 +124,7 @@ class ReplicantRunner(LoggingMixin):
                 "--filter", self.builder.config_file_paths.filter,
                 "--map", self.builder.config_file_paths.map,
                 "--id", self.builder.id,
-                "--truncate-existing"
+                "--truncate-existing", "--overwrite"
             ]
         self.logger.debug(f"Running replicant command: '{' '.join(cmd)}'")
         try:
@@ -133,4 +134,4 @@ class ReplicantRunner(LoggingMixin):
             self.logger.warning(f"Replicant failed: {str(e.cmd)} failed with return code {str(e.returncode)}")
 
         if status == "FAILED" or self.error:
-            self._handle_failure(self.error, self.num_records)
+            self._handle_failure(self.error, self.num_records, ' '.join(cmd))

@@ -151,10 +151,10 @@ class ReplicantConfigBuilder(ABC, SecretMixin):
             username: {self.target_config.username}
             password: {self.target_config.password}
             max-connections: {str(self.target_config.max_connections)}
-            max-retries: 2
+            max-retries: 1
             date-format: yyyy-MM-dd #default yyyy-MM-dd, specify the date format if source DB provides dates in a format other than default (yyyy-dd-mm)
             supports-timestamp-ntz: {str(self.target_config.supports_timestamp_ntz).lower()}
-            retry-wait-duration-ms: 30000 #Duration replicant should wait before performing then next retry
+            retry-wait-duration-ms: 60000 #Duration replicant should wait before performing then next retry
             # stage config section
             stage:
               type: {self.target_config.stage_type}
