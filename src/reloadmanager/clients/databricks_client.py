@@ -64,7 +64,10 @@ class DatabricksWarehouseClient(SecretMixin, LoggingMixin):
                 self.logger.error(f"Query failed with state: {state}")
                 raise RuntimeError(f"Query failed: {result}")
 
-            # Parse results
+            columns = result['manifest']['schema'].get("columns")
+            if not columns:
+                Exception(str(result['manifest']['schema']))
+
             columns = [field['name'] for field in result['manifest']['schema']['columns']]
             rows = result['result']['data_array']
             return [dict(zip(columns, row)) for row in rows]

@@ -8,7 +8,7 @@ import sqlite3
 
 from reloadmanager.event_loader.models import QueueRecord
 from reloadmanager.utils.datetimes import EventTime
-from reloadmanager.event_loader.event_queue import EventQueue  # Replace with the actual import path
+from reloadmanager.event_loader.event_queue import EventQueue
 
 
 @pytest.fixture

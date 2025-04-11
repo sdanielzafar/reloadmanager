@@ -1,5 +1,5 @@
 import argparse
-from reloadmanager.cli import reload_table, query_teradata, batch_load, event_load, query_databricks
+from reloadmanager.cli import reload_table, query_teradata, batch_load, event_load, query_databricks, event_report
 from reloadmanager.utils.datetimes import EventTime
 
 
@@ -58,6 +58,15 @@ def main():
     event_load_parser.add_argument("--log-level", required=False, help="Optional log level", default="INFO")
     event_load_parser.add_argument("--reset-queue", required=False, help="Optional log level", default="false")
     event_load_parser.set_defaults(func=event_load.main)
+
+    # Subcommand: query_teradata
+    event_reporter_parser = subparsers.add_parser("event-report", help="Query Teradata")
+    event_reporter_parser.add_argument("--target-table", required=False, help="DBX table",
+                                       default="td_migration.tnr_history")
+    event_reporter_parser.add_argument("--catalog", required=False, help="DBX catalog",
+                                       default="1dp_migration_dev_catalog_3573379518104516")
+    event_reporter_parser.add_argument("--log-level", required=False, help="Optional log level", default="INFO")
+    event_reporter_parser.set_defaults(func=event_report.main)
 
     args = parser.parse_args()
     args.func(args)
