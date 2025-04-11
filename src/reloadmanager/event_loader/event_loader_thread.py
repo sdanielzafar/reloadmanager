@@ -1,6 +1,7 @@
 import traceback
 from threading import Lock, Event
 import time
+from datetime import datetime
 
 from reloadmanager.arcion.table_reloader import ReportRecord
 from reloadmanager.event_loader.event_queue import EventQueue
@@ -13,9 +14,18 @@ class EventLoaderThread(WorkerThread):
         self.queue: EventQueue = EventQueue(sqlite_path)
         self.output_lock: Lock = Lock()
 
-    # only pick up if 'Q' and priority > 0
+    def wait_if_needed(self):
+        while True:
+            current_minute = datetime.now().minute
+            if current_minute > 2:
+                break
+            self.logger.info(f"Thread {self.thread_id} is waiting till minute 3 to proceed. Sleeping...")
+            time.sleep(5)
 
     def task(self):
+
+        self.wait_if_needed()
+
         task: tuple = self.queue.poll(self.strategy)
 
         if not task:
