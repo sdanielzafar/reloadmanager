@@ -106,23 +106,23 @@ def test_num_records_raises_on_weird_log(mock_open_file, mock_exists, runner):
 
 def test_handle_failure_raises_if_error_and_records_exist(runner):
     with pytest.raises(ReplicantRunError, match="boom"):
-        runner._handle_failure("boom", 10)
+        runner._handle_failure("boom", 10, "some command")
 
 
 def test_handle_failure_raises_on_syntax_error(runner):
     with pytest.raises(ReplicantRunError, match="Syntax error"):
-        runner._handle_failure("Syntax error near clause", 0)
+        runner._handle_failure("Syntax error near clause", 0, "some command")
 
 
 @patch.object(ReplicantRunner, "logger", new_callable=MagicMock)
 def test_handle_failure_warns_if_zero_rows_and_non_syntax_error(mock_logger, runner):
-    runner._handle_failure("Extractor failed", 0)
+    runner._handle_failure("Extractor failed", 0, "some command")
     mock_logger.warning.assert_called_once()
 
 
 def test_handle_failure_raises_on_total_unknown(runner):
     with pytest.raises(ReplicantRunError, match="Unknown error"):
-        runner._handle_failure("", 0)
+        runner._handle_failure("", 0, "some command")
 
 
 @patch.object(ReplicantRunner, "logger", new_callable=MagicMock)
