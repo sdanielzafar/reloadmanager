@@ -1,44 +1,90 @@
 import pytest
-from unittest.mock import patch, mock_open, MagicMock
 import subprocess
-from reloadmanager.arcion.cli_runner import run_cli_cmd
+from reloadmanager.arcion.cli_runner import CliRunner
 
 
-def test_run_cli_cmd_success():
-    mock_command = ["echo", "hello"]
-    mock_output = "hello world\n"
+@pytest.fixture
+def mock_file_writer():
+    log = {}
 
-    with patch("subprocess.run") as mock_run, patch("builtins.open", mock_open()) as mock_file:
-        mock_run.return_value = MagicMock(stdout=mock_output)
-        result = run_cli_cmd(mock_command, "log.txt")
+    def _writer(path, content):
+        log[path] = content
+    return log, _writer
 
-        mock_run.assert_called_once_with(
-            mock_command,
-            check=True,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+
+def test_run_success(mock_file_writer):
+    log, writer = mock_file_writer
+
+    def mock_runner(command):
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="Command executed successfully\n")
+
+    runner = CliRunner(file_writer=writer, process_runner=mock_runner)
+    output = runner.run(["echo", "hello"], "log.txt")
+
+    assert output == "Command executed successfully"
+    assert log["log.txt"] == "Command executed successfully\n"
+
+
+def test_run_called_process_error(mock_file_writer):
+    log, writer = mock_file_writer
+
+    def mock_runner(command):
+        raise subprocess.CalledProcessError(
+            returncode=1,
+            cmd=command,
+            output="Simulated error output\nLine 2"
         )
-        mock_file().write.assert_called_once_with(mock_output)
-        assert result == mock_output.strip()
+
+    runner = CliRunner(file_writer=writer, process_runner=mock_runner)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        runner.run(["bad", "cmd"], "log_err.txt")
+
+    assert log["log_err.txt"] == "Simulated error output\nLine 2"
 
 
-def test_run_cli_cmd_called_process_error():
-    mock_command = ["fake", "command"]
-    mock_output = "error: command not found\n"
-    error = subprocess.CalledProcessError(
-        returncode=1, cmd=mock_command, output=mock_output
-    )
+def test_run_generic_exception(mock_file_writer):
+    log, writer = mock_file_writer
 
-    with patch("subprocess.run", side_effect=error), patch("builtins.open", mock_open()) as mock_file:
-        with pytest.raises(subprocess.CalledProcessError):
-            run_cli_cmd(mock_command, "log.txt")
-        mock_file().write.assert_called_once_with(mock_output)
+    def mock_runner(command):
+        raise RuntimeError("Unexpected failure")
+
+    runner = CliRunner(file_writer=writer, process_runner=mock_runner)
+
+    with pytest.raises(RuntimeError):
+        runner.run(["explode"], "log_crash.txt")
+
+    # Should not write anything to the file in this case
+    assert "log_crash.txt" not in log
 
 
-def test_run_cli_cmd_general_exception():
-    mock_command = ["whatever"]
-    with patch("subprocess.run", side_effect=ValueError("boom")), patch("builtins.open", mock_open()) as mock_file:
-        with pytest.raises(ValueError, match="boom"):
-            run_cli_cmd(mock_command, "log.txt")
-        mock_file().write.assert_not_called()
+def test_run_empty_output(mock_file_writer):
+    log, writer = mock_file_writer
+
+    def mock_runner(command):
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="")
+
+    runner = CliRunner(file_writer=writer, process_runner=mock_runner)
+    output = runner.run(["echo"], "empty_log.txt")
+
+    assert output == ""
+    assert log["empty_log.txt"] == ""
+
+
+def test_run_called_process_error_no_output(mock_file_writer):
+    log, writer = mock_file_writer
+
+    def mock_runner(command):
+        raise subprocess.CalledProcessError(
+            returncode=2,
+            cmd=command,
+            output=None  # this is the edge case
+        )
+
+    runner = CliRunner(file_writer=writer, process_runner=mock_runner)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        runner.run(["fail"], "no_output.txt")
+
+    # Should write empty string to the log file
+    assert log["no_output.txt"] == ""
