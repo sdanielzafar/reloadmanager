@@ -1,7 +1,4 @@
 import sys
-
-from reloadmanager.mixins.logging_mixin import LoggingMixin
-
 if sys.platform.startswith("darwin"):
     import sqlite3 as sqlite3
 else:
@@ -9,6 +6,7 @@ else:
 import time
 import os
 
+from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.event_loader.models import QueueRecord
 from reloadmanager.utils.datetimes import EventTime
 
