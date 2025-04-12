@@ -7,7 +7,7 @@ from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
-class DatabricksWarehouseClient(SecretMixin, LoggingMixin):
+class DatabricksClient(SecretMixin, LoggingMixin):
     def __init__(self, secret_path: str | None = None):
         self.load_env_file(secret_path or "/home/arcion/secrets/.env")
         self.dbx_pat: str = self.get_secret("DATABRICKS_PAT")
