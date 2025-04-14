@@ -66,11 +66,6 @@ class TeradataClient(SecretMixin, LoggingMixin):
             # retry with exponential backoff to 30s
             except Exception as e:
                 attempt += 1
-
-                if delay > self.MAX_BACKOFF_SECONDS:
-                    self.logger.warning(f"Query failed (attempt {attempt}), retrying in {self.MAX_BACKOFF_SECONDS}s.")
-                    time.sleep(self.MAX_BACKOFF_SECONDS)
-
                 self.logger.warning(f"Query failed (attempt {attempt}), retrying in {delay}s: {e}")
                 time.sleep(delay)
                 delay = min(delay * 2, self.MAX_BACKOFF_SECONDS)
