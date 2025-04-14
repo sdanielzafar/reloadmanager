@@ -66,7 +66,7 @@ class DatabricksClient(SecretMixin, LoggingMixin):
 
             columns = result['manifest']['schema'].get("columns")
             if not columns:
-                Exception(str(result['manifest']['schema']))
+                return []
 
             columns = [field['name'] for field in result['manifest']['schema']['columns']]
             rows = result['result']['data_array']
