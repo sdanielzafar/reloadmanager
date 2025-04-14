@@ -1,5 +1,6 @@
 import jaydebeapi
 from contextlib import contextmanager
+import time
 
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.mixins.secret_mixin import SecretMixin
@@ -13,6 +14,7 @@ class TeradataClient(SecretMixin, LoggingMixin):
         self.jdbc_driver = "com.teradata.jdbc.TeraDriver"
         self.jdbc_url = "jdbc:teradata://edwpc.nxp.com/TMODE=TERA"
         self.jdbc_jar = "/arcion/replicant-cli/lib/terajdbc-20.00.00.16.jar"
+        self.MAX_BACKOFF_SECONDS = 300
 
     @contextmanager
     def _connection(self):
@@ -50,3 +52,25 @@ class TeradataClient(SecretMixin, LoggingMixin):
             except Exception:
                 self.logger.error(f"Teradata JDBC query failed: `{sql}`")
                 raise
+
+    def query(self, sql: str) -> list[tuple]:
+        attempt = 0
+        delay = 1
+
+        while True:
+            try:
+                with self._connection() as cursor:
+                    cursor.execute(sql)
+                    return cursor.fetchall()
+
+            # retry with exponential backoff to 30s
+            except Exception as e:
+                attempt += 1
+
+                if delay > self.MAX_BACKOFF_SECONDS:
+                    self.logger.warning(f"Query failed (attempt {attempt}), retrying in {self.MAX_BACKOFF_SECONDS}s.")
+                    time.sleep(self.MAX_BACKOFF_SECONDS)
+
+                self.logger.warning(f"Query failed (attempt {attempt}), retrying in {delay}s: {e}")
+                time.sleep(delay)
+                delay = min(delay * 2, self.MAX_BACKOFF_SECONDS)
