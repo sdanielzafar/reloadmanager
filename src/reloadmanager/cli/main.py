@@ -22,11 +22,13 @@ def main():
     # Subcommand: query_teradata
     td_query_parser = subparsers.add_parser("query-teradata", help="Query Teradata")
     td_query_parser.add_argument("--query", required=True, help="Query")
+    td_query_parser.add_argument("--headers", required=False, help="Whether to display headers", default=False)
     td_query_parser.set_defaults(func=query_teradata.main)
 
-    # Subcommand: query_teradata
+    # Subcommand: query_databricks
     dbx_query_parser = subparsers.add_parser("query-databricks", help="Query Databricks")
     dbx_query_parser.add_argument("--query", required=True, help="Query")
+    dbx_query_parser.add_argument("--headers", required=False, help="Whether to display headers", default=False)
     dbx_query_parser.set_defaults(func=query_databricks.main)
 
     # Subcommand: batch_load
