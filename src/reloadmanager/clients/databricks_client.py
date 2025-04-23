@@ -4,11 +4,10 @@ import time
 from contextlib import contextmanager
 
 from reloadmanager.clients.generic_database_client import GenericDatabaseClient
-from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
-class DatabricksClient(SecretMixin, LoggingMixin, GenericDatabaseClient):
+class DatabricksClient(GenericDatabaseClient, SecretMixin):
     def __init__(self, secret_path: str | None = None):
         super().__init__()
         self.load_env_file(secret_path or "/home/arcion/secrets/.env")

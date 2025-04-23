@@ -2,11 +2,10 @@ import jaydebeapi
 from contextlib import contextmanager
 
 from reloadmanager.clients.generic_database_client import GenericDatabaseClient
-from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
-class TeradataClient(SecretMixin, LoggingMixin, GenericDatabaseClient):
+class TeradataClient(GenericDatabaseClient, SecretMixin):
     def __init__(self):
         super().__init__()
         self.load_env_file("/home/arcion/secrets/.env")

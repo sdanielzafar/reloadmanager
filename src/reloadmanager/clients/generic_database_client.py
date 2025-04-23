@@ -6,7 +6,7 @@ from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
-class GenericDatabaseClient(ABC, SecretMixin, LoggingMixin):
+class GenericDatabaseClient(ABC, LoggingMixin):
     def __init__(self, max_backoff_s: int = 300):
         self.MAX_BACKOFF_SECONDS = max_backoff_s
 
