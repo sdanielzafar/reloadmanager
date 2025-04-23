@@ -101,6 +101,7 @@ class EventQueue(LoggingMixin):
 
             source_table, target_table, event_time, strategy, lock_rows, priority = row
 
+            # see if it's already in the QUEUE_HISTORY
             cursor.execute("""
                 SELECT status FROM QUEUE_HISTORY 
                 WHERE source_table = ?

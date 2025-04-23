@@ -35,7 +35,7 @@ class EventReporter(LoggingMixin):
 
     @staticmethod
     def fmt_row(row: tuple) -> str:
-        expanded: str = "', '".join([str(r) for r in row])
+        expanded: str = "', '".join([str(r).replace("'", "") for r in row])
         if not expanded:
             return "()"
         return f"('{expanded}')"

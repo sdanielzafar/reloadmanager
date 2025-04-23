@@ -45,15 +45,6 @@ class TeradataClient(SecretMixin, LoggingMixin):
                     print(f"Teradata JDBC connection cleanup failed: {e}")
 
     def query(self, sql: str) -> list[tuple]:
-        with self._connection() as cursor:
-            try:
-                cursor.execute(sql)
-                return cursor.fetchall()
-            except Exception:
-                self.logger.error(f"Teradata JDBC query failed: `{sql}`")
-                raise
-
-    def query(self, sql: str) -> list[tuple]:
         attempt = 0
         delay = 1
 

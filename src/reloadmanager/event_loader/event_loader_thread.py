@@ -4,23 +4,48 @@ import time
 from datetime import datetime
 
 from reloadmanager.arcion.table_reloader import ReportRecord
+from reloadmanager.clients.databricks_client import DatabricksClient
 from reloadmanager.event_loader.event_queue import EventQueue
 from reloadmanager.threading.worker_thread import WorkerThread
 
 
 class EventLoaderThread(WorkerThread):
-    def __init__(self, thread_id: int, strategy: str, run_name: str, sqlite_path: str, stop_signal: Event):
+    def __init__(self,
+                 thread_id: int,
+                 strategy: str,
+                 run_name: str,
+                 sqlite_path: str,
+                 stop_signal: Event,
+                 databricks_client: DatabricksClient = None):
         super().__init__(thread_id, strategy, f"~/event_loader/configs/{run_name}", stop_signal)
         self.queue: EventQueue = EventQueue(sqlite_path)
         self.output_lock: Lock = Lock()
+        self.databricks_client = databricks_client or DatabricksClient()
 
     def wait_if_needed(self):
+        messaged = False
         while True:
             current_minute = datetime.now().minute
             if current_minute > 2:
                 break
-            self.logger.info(f"Thread {self.thread_id} is waiting till minute 3 to proceed. Sleeping...")
-            time.sleep(5)
+            if not messaged:
+                self.logger.info(f"Thread {self.thread_id} is waiting till minute 3 to proceed. Sleeping...")
+                messaged = True
+            time.sleep(2)
+
+    def trigger_validation(self, source_table: str, target_table: str):
+        job_id: int = 895566902612908
+        s_schema, s_table = source_table.split(".")
+        t_schema, t_table = target_table.split(".")[1:]
+        params: dict[str, str] = {
+            "source_schema":  s_schema,
+            "source_table":  s_table,
+            "target_schema":  t_schema,
+            "target_table":  t_table,
+
+        }
+        run_id: str = self.databricks_client.trigger_job(job_id, params)
+        self.logger.info(f"Successfully triggered validation job for table '{source_table}' with run_id: {run_id}")
 
     def task(self):
 
@@ -41,6 +66,7 @@ class EventLoaderThread(WorkerThread):
             result: ReportRecord = self.reload_table(source_table, target_table, lock_rows)
 
             self.logger.info(f"Thread {self.thread_id} reloaded table '{source_table}'")
+            self.trigger_validation(source_table, target_table)
             duration, end_time, n_records, status, error = \
                 result.duration, result.end, result.num_records, result.status, result.error
         except Exception as e:

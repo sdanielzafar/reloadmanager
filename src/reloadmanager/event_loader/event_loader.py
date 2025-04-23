@@ -59,6 +59,7 @@ class EventLoader(LoggingMixin):
                 LoadCompletionTS as reload_ts 
             FROM EDWPC_SYNC.EBI_LOAD_COMPLETION_GOLD 
             WHERE LoadCompletionTS > '{self.watermark}'
+            AND LoadCompletionTS <= '{EventTime.now()}' 
         """
         self.logger.debug(f"Teradata query: {td_query}")
         rows = self.td_client.query(td_query)

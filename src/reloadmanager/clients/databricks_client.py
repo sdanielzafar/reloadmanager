@@ -71,3 +71,33 @@ class DatabricksClient(SecretMixin, LoggingMixin):
             columns = [field['name'] for field in result['manifest']['schema']['columns']]
             rows = result['result']['data_array']
             return [dict(zip(columns, row)) for row in rows]
+
+    def trigger_job(self, job_id: int, parameters: dict[str, str] = None) -> str:
+        """Triggers a Databricks job with optional parameters. Returns the run_id."""
+        parameters = parameters or {}
+        headers = {
+            'Authorization': f'Bearer {self.dbx_pat}',
+            'Content-Type': 'application/json'
+        }
+
+        body = {
+            "job_id": job_id,
+            "notebook_params": parameters
+        }
+
+        with self._http_connection() as conn:
+            try:
+                conn.request("POST", "/api/2.1/jobs/run-now", body=json.dumps(body), headers=headers)
+                resp = conn.getresponse()
+                data = json.loads(resp.read())
+
+                if resp.status != 200:
+                    self.logger.error(f"Job trigger failed: {data}")
+                    raise RuntimeError(f"Failed to trigger job: {data}")
+
+                run_id = data.get("run_id")
+                return run_id
+
+            except Exception as e:
+                self.logger.error(f"Exception while triggering job_id {job_id}: {e}")
+                raise
