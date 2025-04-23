@@ -25,7 +25,7 @@ class DatabricksClient(GenericDatabaseClient, SecretMixin):
             if conn:
                 conn.close()
 
-    def _query(self, sql: str, headers: bool) -> list[tuple] | list[dict]:
+    def _query(self, sql: str, headers: bool = False) -> list[tuple] | list[dict]:
         with self._connection() as conn:
             # Submit query
             req_headers = {

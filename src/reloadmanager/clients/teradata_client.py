@@ -43,7 +43,7 @@ class TeradataClient(GenericDatabaseClient, SecretMixin):
                 except Exception as e:
                     print(f"Teradata JDBC connection cleanup failed: {e}")
 
-    def _query(self, sql: str, headers: bool) -> list[tuple] | list[dict]:
+    def _query(self, sql: str, headers: bool = False) -> list[tuple] | list[dict]:
         with self._connection() as cursor:
             cursor.execute(sql)
             rows = cursor.fetchall()
