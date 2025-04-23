@@ -36,6 +36,9 @@ class GenericDatabaseClient(ABC, SecretMixin, LoggingMixin):
                 time.sleep(delay)
                 delay = min(delay * 2, self.MAX_BACKOFF_SECONDS)
 
+        if attempt == 1:
+            raise error
+
         raise TimeoutError(f"Query failed: max retries exceeded (attempt {attempt}). Most recent error: {repr(error)}")
 
     def query(self, sql: str, headers: bool = False, max_attempts: int = 1) -> list[tuple] | list[dict]:
