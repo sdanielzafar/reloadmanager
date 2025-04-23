@@ -1,6 +1,6 @@
 from threading import Lock, Event
 
-from reloadmanager.arcion.table_reloader import ReportRecord
+from reloadmanager.table_loader.report_record import ReportRecord
 from reloadmanager.batch_loader.batch_queue import BatchQueue
 from reloadmanager.threading.worker_thread import WorkerThread
 

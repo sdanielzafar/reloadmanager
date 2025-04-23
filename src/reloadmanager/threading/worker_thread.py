@@ -4,7 +4,8 @@ from threading import Thread, Event
 import traceback
 import time
 
-from reloadmanager.arcion.table_reloader import TableReloader, ReportRecord
+from reloadmanager.table_loader.table_reloader import TableReloader
+from reloadmanager.table_loader.report_record import ReportRecord
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.threading.synchronization import LogLock
 

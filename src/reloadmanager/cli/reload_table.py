@@ -1,4 +1,4 @@
-from reloadmanager.arcion.table_reloader import TableReloader
+from reloadmanager.table_loader.table_reloader import TableReloader
 import logging
 
 

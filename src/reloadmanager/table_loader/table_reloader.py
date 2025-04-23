@@ -1,38 +1,18 @@
 import time
-from datetime import datetime
-from dataclasses import dataclass
-from zoneinfo import ZoneInfo
 
 from reloadmanager.arcion.nxp_config_builder import NxpConfigBuilder
 from reloadmanager.arcion.replicant_runner import ReplicantRunner, ReplicantRunError
 from reloadmanager.mixins.logging_mixin import LoggingMixin
-
-
-@dataclass(frozen=True)
-class ReportRecord:
-    table: str
-    strategy: str
-    status: str
-    start: float
-    end: float
-    num_records: int
-    error: str
-
-    @property
-    def duration(self) -> float:
-        return round((self.end - self.start) / 60, 2)
-
-    @staticmethod
-    def format_mst(t: float) -> str:
-        return datetime.fromtimestamp(t, ZoneInfo("America/Phoenix")).strftime('%-m/%-d/%y %-I:%M %p')
-
-    def __str__(self):
-        return f"{self.table},{self.strategy},{self.status},{self.format_mst(self.start)},{self.format_mst(self.end)},"\
-               f"{self.duration:.2f},{self.num_records},{self.error.strip()}\n"
+from reloadmanager.table_loader.report_record import ReportRecord
 
 
 class TableReloader(LoggingMixin):
-    def __init__(self, source_table: str, target_table: str, strategy: str, lock_rows: bool, config_dir_path: str):
+    def __init__(self,
+                 source_table: str,
+                 target_table: str,
+                 strategy: str,
+                 lock_rows: bool,
+                 config_dir_path: str):
         self.source_table: str = source_table
         self.target_table: str = target_table
         self.strategy: str = strategy
