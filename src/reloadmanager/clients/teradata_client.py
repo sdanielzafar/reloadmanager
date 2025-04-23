@@ -1,20 +1,20 @@
 import jaydebeapi
 from contextlib import contextmanager
-import time
 
+from reloadmanager.clients.generic_database_client import GenericDatabaseClient
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
-class TeradataClient(SecretMixin, LoggingMixin):
+class TeradataClient(SecretMixin, LoggingMixin, GenericDatabaseClient):
     def __init__(self):
+        super().__init__()
         self.load_env_file("/home/arcion/secrets/.env")
         self.td_user: str = self.get_secret("TD_USER")
         self.td_pass: str = self.get_secret("TD_PASS")
         self.jdbc_driver = "com.teradata.jdbc.TeraDriver"
         self.jdbc_url = "jdbc:teradata://edwpc.nxp.com/TMODE=TERA"
         self.jdbc_jar = "/arcion/replicant-cli/lib/terajdbc-20.00.00.16.jar"
-        self.MAX_BACKOFF_SECONDS = 300
 
     @contextmanager
     def _connection(self):
@@ -44,19 +44,11 @@ class TeradataClient(SecretMixin, LoggingMixin):
                 except Exception as e:
                     print(f"Teradata JDBC connection cleanup failed: {e}")
 
-    def query(self, sql: str) -> list[tuple]:
-        attempt = 0
-        delay = 1
-
-        while True:
-            try:
-                with self._connection() as cursor:
-                    cursor.execute(sql)
-                    return cursor.fetchall()
-
-            # retry with exponential backoff to 30s
-            except Exception as e:
-                attempt += 1
-                self.logger.warning(f"Query failed (attempt {attempt}), retrying in {delay}s: {e}")
-                time.sleep(delay)
-                delay = min(delay * 2, self.MAX_BACKOFF_SECONDS)
+    def _query(self, sql: str, headers: bool) -> list[tuple] | list[dict]:
+        with self._connection() as cursor:
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            if not headers:
+                return rows
+            headers = [desc[0] for desc in cursor.description]
+            return [dict(zip(headers, row)) for row in rows]

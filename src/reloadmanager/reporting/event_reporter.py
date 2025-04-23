@@ -20,7 +20,10 @@ class EventReporter(LoggingMixin):
         self.db_path: str = sqlite_path
 
     def last_update(self) -> str | None:
-        last_time: list[dict[str, str]] = self.databricks_client.query(f"SELECT MAX(finish_time) as max_dttm FROM {self.target}")
+        last_time: list[dict[str, str]] = self.databricks_client.query(
+            f"SELECT MAX(finish_time) as max_dttm FROM {self.target}",
+            headers=True
+        )
         return last_time[0]["max_dttm"].replace("T", " ").replace(".000Z", "")
 
     def query_queue_history(self, from_dttm: str) -> list[tuple]:
@@ -52,4 +55,4 @@ class EventReporter(LoggingMixin):
             return
         sql: str = f"INSERT INTO {self.target} VALUES {self.fmt_values(records)};"
         self.logger.debug(f"Running Databricks query: \n{sql}")
-        self.databricks_client.query(sql)
+        self.databricks_client.query(sql, headers=True)

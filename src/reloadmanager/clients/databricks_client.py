@@ -3,19 +3,21 @@ import json
 import time
 from contextlib import contextmanager
 
+from reloadmanager.clients.generic_database_client import GenericDatabaseClient
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
-class DatabricksClient(SecretMixin, LoggingMixin):
+class DatabricksClient(SecretMixin, LoggingMixin, GenericDatabaseClient):
     def __init__(self, secret_path: str | None = None):
+        super().__init__()
         self.load_env_file(secret_path or "/home/arcion/secrets/.env")
         self.dbx_pat: str = self.get_secret("DATABRICKS_PAT")
         self.dbx_host = self.get_secret("DBX_HOST")
         self.dbx_warehouse = self.get_secret("DBX_WAREHOUSE")
 
     @contextmanager
-    def _http_connection(self):
+    def _connection(self):
         conn = None
         try:
             conn = http.client.HTTPSConnection(self.dbx_host)
@@ -24,10 +26,10 @@ class DatabricksClient(SecretMixin, LoggingMixin):
             if conn:
                 conn.close()
 
-    def query(self, sql: str) -> list[dict]:
-        with self._http_connection() as conn:
+    def _query(self, sql: str, headers: bool) -> list[tuple] | list[dict]:
+        with self._connection() as conn:
             # Submit query
-            headers = {
+            req_headers = {
                 'Authorization': f'Bearer {self.dbx_pat}',
                 'Content-Type': 'application/json'
             }
@@ -37,7 +39,7 @@ class DatabricksClient(SecretMixin, LoggingMixin):
             }
 
             try:
-                conn.request("POST", "/api/2.0/sql/statements", body=json.dumps(body), headers=headers)
+                conn.request("POST", "/api/2.0/sql/statements", body=json.dumps(body), headers=req_headers)
                 resp = conn.getresponse()
                 data = json.loads(resp.read())
                 statement_id = data['statement_id']
@@ -48,7 +50,7 @@ class DatabricksClient(SecretMixin, LoggingMixin):
             # Poll for results
             while True:
                 try:
-                    conn.request("GET", f"/api/2.0/sql/statements/{statement_id}", headers=headers)
+                    conn.request("GET", f"/api/2.0/sql/statements/{statement_id}", headers=req_headers)
                     poll_resp = conn.getresponse()
                     result = json.loads(poll_resp.read())
                     state = result['status']['state']
@@ -70,7 +72,10 @@ class DatabricksClient(SecretMixin, LoggingMixin):
 
             columns = [field['name'] for field in result['manifest']['schema']['columns']]
             rows = result['result']['data_array']
-            return [dict(zip(columns, row)) for row in rows]
+            if headers:
+                return [dict(zip(columns, row)) for row in rows]
+            else:
+                return [row for row in rows]
 
     def trigger_job(self, job_id: int, parameters: dict[str, str] = None) -> str:
         """Triggers a Databricks job with optional parameters. Returns the run_id."""
@@ -85,7 +90,7 @@ class DatabricksClient(SecretMixin, LoggingMixin):
             "notebook_params": parameters
         }
 
-        with self._http_connection() as conn:
+        with self._connection() as conn:
             try:
                 conn.request("POST", "/api/2.1/jobs/run-now", body=json.dumps(body), headers=headers)
                 resp = conn.getresponse()

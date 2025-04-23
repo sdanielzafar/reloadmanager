@@ -62,7 +62,7 @@ class EventLoader(LoggingMixin):
             AND LoadCompletionTS <= '{EventTime.now()}' 
         """
         self.logger.debug(f"Teradata query: {td_query}")
-        rows = self.td_client.query(td_query)
+        rows = self.td_client.query(td_query, max_attempts=200)
         return [TrackerRecord(tbl, EventTime(ts)) for tbl, ts in rows]
 
     @staticmethod
