@@ -12,6 +12,7 @@ def main(args):
         source_table=args.source_table,
         target_table=args.target_table,
         strategy=args.strategy,
+        engine=args.engine,
         lock_rows=args.lock_rows,
         config_dir_path=args.config_dir_path
     )

@@ -43,7 +43,11 @@ class WorkerThread(Thread, ABC, LoggingMixin):
 
     def reload_table(self, source_table: str, target_table: str, lock_rows: bool) -> ReportRecord:
         reloader: TableReloader = TableReloader(
-            source_table, target_table, self.strategy, bool(lock_rows),
+            source_table,
+            target_table,
+            self.strategy,
+            'native',
+            bool(lock_rows),
             os.path.expanduser(self.config_dir_path)
         )
         return reloader.reload()

@@ -14,6 +14,7 @@ def main():
     reload_parser.add_argument("--source-table", required=True, help="Teradata: schema.table")
     reload_parser.add_argument("--target-table", required=True, help="Databricks: catalog.schema.table")
     reload_parser.add_argument("--strategy", required=False, help="'WriteNOS' or 'TPT", default="WriteNOS")
+    reload_parser.add_argument("--engine", required=False, help="'arcion' or 'native", default="native")
     reload_parser.add_argument("--replicant-path", required=False, help="Path to Arcion Replicant")
     reload_parser.add_argument("--config-dir-path", required=False, help="Optional path to put config files")
     reload_parser.add_argument("--lock-rows", required=False, help="Whether to enable row locking", default=True)
