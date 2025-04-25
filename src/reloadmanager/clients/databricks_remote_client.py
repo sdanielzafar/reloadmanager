@@ -7,11 +7,11 @@ from reloadmanager.clients.generic_database_client import GenericDatabaseClient
 from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
-class DatabricksClient(GenericDatabaseClient, SecretMixin):
+class DatabricksRemoteClient(GenericDatabaseClient, SecretMixin):
     def __init__(self, secret_path: str | None = None):
         super().__init__()
         self.load_env_file(secret_path or "/home/arcion/secrets/.env")
-        self.dbx_pat: str = self.get_secret("DATABRICKS_PAT")
+        self.dbx_pat: str = self.get_secret("DBX_PAT")
         self.dbx_host = self.get_secret("DBX_HOST")
         self.dbx_warehouse = self.get_secret("DBX_WAREHOUSE")
 
@@ -70,7 +70,9 @@ class DatabricksClient(GenericDatabaseClient, SecretMixin):
                 return []
 
             columns = [field['name'] for field in result['manifest']['schema']['columns']]
-            rows = result['result']['data_array']
+            rows = result['result'].get('data_array')
+            if not rows:
+                return []
             if headers:
                 return [dict(zip(columns, row)) for row in rows]
             else:

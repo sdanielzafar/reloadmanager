@@ -3,7 +3,8 @@ from dataclasses import astuple
 
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 from reloadmanager.writenos.teradata_interface import TeradataInterface
-from reloadmanager.clients.databricks_client import DatabricksClient
+from reloadmanager.clients.databricks_client_factory import get_dbx_client
+from reloadmanager.clients.generic_database_client import GenericDatabaseClient
 from reloadmanager.writenos.writenos_config_builder import WriteNOSConfigBuilder
 
 
@@ -17,8 +18,8 @@ class WriteNOSRunner(LoggingMixin):
         self.builder: WriteNOSConfigBuilder = builder
         self.source_interface: TeradataInterface = source_interface if source_interface \
             else TeradataInterface(str(self.builder.source_table))
-        self.target_interface: DatabricksClient = target_interface if target_interface \
-            else DatabricksClient()
+        self.target_interface: GenericDatabaseClient = target_interface if target_interface \
+            else get_dbx_client()
         self.num_records: int = 0
 
     @property
@@ -134,7 +135,7 @@ MAXOBJECTSIZE('16MB')
 COMPRESSION('SNAPPY')
 ) AS d'''
 
-        self.logger.debug(f' --> Running Write_NOS using query: {query}')
+        self.logger.debug(f'Running Write_NOS using query: \n{query}')
 
         # Execute the SQL query to export data to S3 in Parquet format
         result: list[dict] = self.source_interface.query(query, headers=True)
@@ -170,7 +171,7 @@ FROM (
 FILEFORMAT = PARQUET
 COPY_OPTIONS ('force'='true','mergeSchema' = 'false')
         """
-        self.logger.debug(f"Running query: {query}")
+        self.logger.debug(f"Running COPY INTO query: {query}")
 
         self.target_interface.query(query)
 

@@ -3,10 +3,15 @@ import logging
 
 
 def main(args):
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    logger = logging.getLogger("reloadmanager")
+    logger.setLevel(logging.DEBUG)
+
+    # Attach a handler with custom formatting
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(handler)
+
+    logger.info("Starting reload...")
 
     reloader: TableReloader = TableReloader(
         source_table=args.source_table,

@@ -4,7 +4,8 @@ import time
 from datetime import datetime
 
 from reloadmanager.table_loader.report_record import ReportRecord
-from reloadmanager.clients.databricks_client import DatabricksClient
+from reloadmanager.clients.databricks_client_factory import get_dbx_client
+from reloadmanager.clients.generic_database_client import GenericDatabaseClient
 from reloadmanager.event_loader.event_queue import EventQueue
 from reloadmanager.threading.worker_thread import WorkerThread
 
@@ -16,11 +17,11 @@ class EventLoaderThread(WorkerThread):
                  run_name: str,
                  sqlite_path: str,
                  stop_signal: Event,
-                 databricks_client: DatabricksClient = None):
+                 databricks_client: GenericDatabaseClient = None):
         super().__init__(thread_id, strategy, f"~/event_loader/configs/{run_name}", stop_signal)
         self.queue: EventQueue = EventQueue(sqlite_path)
         self.output_lock: Lock = Lock()
-        self.databricks_client = databricks_client or DatabricksClient()
+        self.databricks_client = databricks_client or get_dbx_client()
 
     def wait_if_needed(self):
         messaged = False

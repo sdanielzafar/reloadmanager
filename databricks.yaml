@@ -1,0 +1,31 @@
+bundle:
+  name: reloadmanager
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-7c9eb967-788d.cloud.databricks.com/?o=3573379518104516
+
+  prod:
+    mode: production
+    workspace:
+      host: https://company.databricks.com
+      root_path: /Shared/reloadmanager/.bundle/${bundle.name}/${bundle.target}
+    permissions:
+      - user_name: dan.zafar@nxp.com
+        level: CAN_MANAGE
+    run_as:
+      user_name: dan.zafar@nxp.com
+
+artifacts:
+  table-reloader:
+    type: python_wheel
+    path: ./dist
+    build:
+      wheel:
+        path: .

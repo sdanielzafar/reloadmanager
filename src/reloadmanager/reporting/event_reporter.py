@@ -4,7 +4,8 @@ if sys.platform.startswith("darwin"):
 else:
     import pysqlite3 as sqlite3
 
-from reloadmanager.clients.databricks_client import DatabricksClient
+from reloadmanager.clients.generic_database_client import GenericDatabaseClient
+from reloadmanager.clients.databricks_client_factory import get_dbx_client
 from reloadmanager.mixins.logging_mixin import LoggingMixin
 
 
@@ -14,8 +15,8 @@ class EventReporter(LoggingMixin):
             target_table: str = "td_migration.tnr_history",
             catalog: str = "1dp_migration_dev_catalog_3573379518104516",
             sqlite_path: str = "/home/arcion/event_loader/sqlite/primary.db",
-            databricks_client: DatabricksClient = None):
-        self.databricks_client = databricks_client or DatabricksClient()
+            databricks_client: GenericDatabaseClient = None):
+        self.databricks_client = databricks_client or get_dbx_client()
         self.target: str = f"{catalog}.{target_table}"
         self.db_path: str = sqlite_path
 

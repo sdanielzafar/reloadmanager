@@ -16,12 +16,9 @@ class WriteNOSConfigBuilder(SecretMixin):
         self.source_table: TableInfo = self._validate_source_table(source_table)
         self.target_table: TableInfo = self._validate_target_table(target_table)
         self.load_env_file("/home/arcion/secrets/.env")
-        self.databricks_pat = self.get_secret("DATABRICKS_PAT")
         self.aws_key = self.get_secret("AWS_KEY")
         self.aws_secret = self.get_secret("AWS_SECRET")
         self.aws_bucket = self.get_secret("AWS_BUCKET")
-        self.dbx_host = self.get_secret("DBX_HOST")
-        self.dbx_warehouse = self.get_secret("DBX_WAREHOUSE")
 
     @cached_property
     def id(self) -> str:

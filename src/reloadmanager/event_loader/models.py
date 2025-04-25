@@ -21,6 +21,21 @@ class QueueRecord:
     priority: int
     event_time_latest: str | None
 
+    def to_sql_values(self) -> str:
+        def lit(v):
+            match v:
+                case None:              # NULL sentinel
+                    return "NULL"
+                case bool() as b:       # booleans → true/false
+                    return "true" if b else "false"
+                case int():             # numerics stay raw
+                    return str(v)
+                case str() as s:        # strings: escape quotes
+                    s_rep: str = s.replace("'", "")
+                    return f"'{s_rep}'"
+
+        return "(" + ", ".join(lit(v) for v in iter(self)) + ")"
+
     def __getitem__(self, index):
         f = (
             self.source_table,
@@ -37,6 +52,10 @@ class QueueRecord:
 
     def __len__(self):
         return 9
+
+    def __iter__(self):
+        # re-use the existing tuple to avoid dup logic
+        return iter(self[i] for i in range(len(self)))
 
 
 @dataclass(frozen=True)

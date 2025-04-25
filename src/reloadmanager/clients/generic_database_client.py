@@ -3,17 +3,11 @@ from abc import ABC, abstractmethod
 import time
 
 from reloadmanager.mixins.logging_mixin import LoggingMixin
-from reloadmanager.mixins.secret_mixin import SecretMixin
 
 
 class GenericDatabaseClient(ABC, LoggingMixin):
     def __init__(self, max_backoff_s: int = 300):
         self.MAX_BACKOFF_SECONDS = max_backoff_s
-
-    @contextmanager
-    @abstractmethod
-    def _connection(self):
-        pass
 
     @abstractmethod
     def _query(self, sql: str, headers: bool = False) -> list[tuple]:
