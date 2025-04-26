@@ -14,12 +14,14 @@ class TableReloader(LoggingMixin):
     def __init__(self,
                  source_table: str,
                  target_table: str,
+                 where_clause: str,
                  strategy: str,
                  engine: str,
                  lock_rows: bool,
                  config_dir_path: str):
         self.source_table: str = source_table
         self.target_table: str = target_table
+        self.where_clause: str = where_clause
         self.strategy: str = strategy
         self.engine: str = engine
         self.lock_rows: bool = lock_rows
@@ -40,6 +42,7 @@ class TableReloader(LoggingMixin):
                 return WriteNOSConfigBuilder(
                     source_table=self.source_table,
                     target_table=self.target_table,
+                    where_clause=self.where_clause
                 )
             case _:
                 raise ValueError("Invalid migration engine, must be 'arcion' or 'native'")

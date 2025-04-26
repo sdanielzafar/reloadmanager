@@ -175,15 +175,15 @@ COPY_OPTIONS ('force'='true','mergeSchema' = 'false')
 
         self.target_interface.query(query)
 
-    def run_snapshot(self, where_clause: str = None, validate_counts: bool = True):
+    def run_snapshot(self, validate_counts: bool = True):
 
         try:
             select_query = self.build_select_query()
             self.logger.info(f"Using query {select_query}")
 
-            s3_path = self.export_nos(select_query, where_clause)
+            s3_path = self.export_nos(select_query, self.builder.where_clause)
 
-            if not where_clause:
+            if not self.builder.where_clause:
                 self.truncate_target_table()
 
             if validate_counts:

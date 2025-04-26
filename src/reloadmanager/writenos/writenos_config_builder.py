@@ -11,10 +11,12 @@ class WriteNOSConfigBuilder(SecretMixin):
     def __init__(
             self,
             source_table: str,
-            target_table: str
+            target_table: str,
+            where_clause: str = None
     ):
         self.source_table: TableInfo = self._validate_source_table(source_table)
         self.target_table: TableInfo = self._validate_target_table(target_table)
+        self.where_clause = where_clause
         self.load_env_file("/home/arcion/secrets/.env")
         self.aws_key = self.get_secret("AWS_KEY")
         self.aws_secret = self.get_secret("AWS_SECRET")
