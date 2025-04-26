@@ -1,1 +1,1 @@
-# NXP
+# Teradata -> Databricks Reload Manager
