@@ -2,14 +2,14 @@ bundle:
   name: reloadmanager
 
 include:
-  - resources/*.yml
+  - resources/*.yaml
 
 targets:
   dev:
     mode: development
     default: true
     workspace:
-      host: https://dbc-7c9eb967-788d.cloud.databricks.com/?o=3573379518104516
+      host: https://dbc-7c9eb967-788d.cloud.databricks.com
 
   prod:
     mode: production
@@ -23,9 +23,7 @@ targets:
       user_name: dan.zafar@nxp.com
 
 artifacts:
-  table-reloader:
-    type: python_wheel
-    path: ./dist
-    build:
-      wheel:
-        path: .
+  default:
+    type: whl
+    build: python -m build
+    dynamic_version: true
